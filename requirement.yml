@@ -1,0 +1,10 @@
+name: EH_env
+channels:
+  - defaults
+dependencies:
+  - python=3.10
+  - numpy
+  - torchaudio
+  - torchvision
+  - pytorch
+  - pandas
