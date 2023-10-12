@@ -8,3 +8,5 @@ dependencies:
   - torchvision
   - pytorch
   - pandas
+  - python-dotenv
+prefix: /Users/lap60465/anaconda3/envs/EH_env
