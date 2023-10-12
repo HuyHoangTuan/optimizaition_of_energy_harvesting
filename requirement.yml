@@ -4,9 +4,7 @@ channels:
 dependencies:
   - python=3.10
   - numpy
-  - torchaudio
-  - torchvision
   - pytorch
+  - torchvision
   - pandas
   - python-dotenv
-prefix: /Users/lap60465/anaconda3/envs/EH_env
