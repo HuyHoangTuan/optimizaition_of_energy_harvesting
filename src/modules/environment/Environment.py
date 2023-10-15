@@ -1,18 +1,42 @@
 import numpy as np
 import random
+import math
 
 class Environment:
+    # [PU2, PU1]
     def __init__(
             self,
-            P_max=1, Xi=0.1, Lambda=0.1, N=20, I=0.5, Gamma=0.99,
-            Alpha=0.003, Eta=0.9, T_s=1, N_0=1,
-            E_max=0.2,
-            Phi=1, Rho=0.4, A=10
+            P_max = 1,
+            Xi_s = 0.1,
+            Xi_pr = [0.1, 0.1],
+            Xi_ps = [0.1, 0.1],
+            Xi_p = [0.1, 0.1],
+            Xi_sp = [0.1, 0.1],
+            Lambda = [0.1, 0.1],
+            N = 20,
+            I = [0.5, 0.5],
+            Gamma = 0.99,
+            Alpha = 0.003,
+            Eta = 0.9,
+            T_s = 1,
+            N_0 = 1,
+            E_max = 0.2,
+            Phi = 1,
+            Rho = 0.4,
+            A = 10,
+            seed = 2,
     ):
         self.actions_space = [(0, s * 0.05) for s in range(1, 11, 1)] + [(1, s * 0.05) for s in range(1, 11, 1)]
+        self.records = []
 
         self.P_max = P_max
-        self.Xi = Xi
+
+        self.Xi_s = Xi_s
+        self.Xi_pr = Xi_pr
+        self.Xi_ps = Xi_ps
+        self.Xi_p = Xi_p
+        self.Xi_sp = Xi_sp
+
         self.Lambda = Lambda
         self.N = N
         self.I = I
@@ -28,140 +52,171 @@ class Environment:
         self.C_max = 0.5
         self.TimeSlot = -1
 
-        self.G_P = []
-        self.G_SP = []
-        self.G_PS = []
-        self.G_PR = []
-        self.G_S = []
+        # random
+        self.random = np.random.default_rng(seed)
 
-        self.arr_P_p1 = np.loadtxt('res/P_p1.txt', delimiter=' ')
-        self.arr_P_p2 = np.loadtxt('res/P_p2.txt', delimiter=' ')
-        self.arr_C_0 = np.loadtxt('res/C_0.txt', delimiter=' ')
-        self.arr_E_ambient = np.loadtxt('res/E_ambient.txt', delimiter=' ')
-        self.arr_g_s = np.loadtxt('res/g_s.txt', delimiter=' ')
-        self.arr_g_p1r = np.loadtxt('res/g_p1r.txt', delimiter=' ')
-        self.arr_g_p1s = np.loadtxt('res/g_p1s.txt', delimiter=' ')
-        self.arr_g_p2s = np.loadtxt('res/g_p2s.txt', delimiter=' ')
-        self.arr_g_sp1 = np.loadtxt('res/g_sp1.txt', delimiter=' ')
-        self.arr_g_sp2 = np.loadtxt('res/g_sp2.txt', delimiter=' ')
-        self.arr_g_p1 = np.loadtxt('res/g_p1.txt', delimiter=' ')
-        self.arr_g_p2 = np.loadtxt('res/g_p2.txt', delimiter=' ')
+    def _get_PU(self, action, time_slot):
+        return 0 if time_slot > self.A else 1
 
-    def harvest_energy(self, v):
-        E_ambient = self.arr_E_ambient[self.TimeSlot]
-        E_TS = self.Rho * self.T_s * self.Eta
-        P_p1 = self.arr_P_p1[self.TimeSlot]
-        P_p2 = self.arr_P_p2[self.TimeSlot]
+    def _get_P(self, action, time_slot, pu = None):
+        if pu is None:
+            pu = self._get_PU(action, time_slot)
 
-        E_TS *= P_p1 * self.G_PS[1] if v == 1 else P_p2 * self.G_PS[0]
+        # transmit power
+        _, P = self.actions_space[action]
+        return P
 
-        if (v == 1 and P_p1 >= self.Lambda):
-            E_TS *= P_p1 * self.G_PS[1]
-            self.Mu = 1 - self.Rho
-        elif (v == 0 and P_p2 >= self.Lambda):
-            E_TS *= P_p2 * self.G_PS[0]
-            self.Mu = 1 - self.Rho
+    def _get_k(self, action, time_slot, pu = None):
+        if pu is None:
+            pu = self._get_PU(action, time_slot)
+
+        # choice
+        k, _ = self.actions_space[action]
+        return k
+
+    def _get_E_ambient(self, action, time_slot, pu = None):
+        if pu is None:
+            pu = self._get_PU(action, time_slot)
+
+        # ambient resources
+        return self.random.uniform(0, self.E_max)
+
+    def _get_g_ps(self, action, time_slot, pu = None):
+        if pu is None:
+            pu = self._get_PU(action, time_slot)
+
+        return self.random.exponential(1.0/self.Xi_ps[pu])
+
+    def _get_E_TS(self, action, time_slot, pu = None):
+        if pu is None:
+            pu = self._get_PU(action, time_slot)
+
+        # energy harvested from the PU(time_slot)
+        return self.Rho * self.T_s * self._get_P(action, time_slot, pu) * self.Eta & self._get_g_ps(action, time_slot, pu)
+
+    def _get_g_s(self, action, time_slot, pu = None):
+        if pu is None:
+            pu = self._get_PU(action, time_slot)
+
+        return self.random.exponential(1.0/self.Xi_s)
+
+    def _get_g_pr(self, action, time_slot, pu = None):
+        if pu is None:
+            pu = self._get_PU(action, time_slot)
+
+        return self.random.exponential(1.0/self.Xi_pr[pu])
+
+    def _get_g_sp(self, action, time_slot, pu = None):
+        if pu is None:
+            pu = self._get_PU(action, time_slot)
+
+        return self.random.exponential(1.0/self.Xi_sp[pu])
+
+    def _get_g_p(self, action, time_slot, pu = None):
+        if pu is None:
+            pu = self._get_PU(action, time_slot)
+
+        return self.random.exponential(1.0/self.Xi_p[pu])
+
+    def _get_mu(self, action, time_slot, pu = None):
+        if pu is None:
+            pu = self._get_PU(action, time_slot)
+
+        Lambda = self.Lambda[pu]
+        if self._get_P(action, time_slot, pu) >= Lambda:
+            return 1 - self.Rho
         else:
-            self.Mu = 1
-            E_TS = 0
+            return 1
 
-        E_h = E_TS + E_ambient
+    def _get_Hs(self, action, time_slot, pu = None):
+        if pu is None:
+            pu = self._get_PU(action, time_slot)
 
-        return E_h
-
-    def action_sampling(self):
-        return random.sample([s for s in range(len(self.actions_space))], 1)[0]
-
-    def map_action(self, num):
-        return self.actions_space[num]
-
-    def get_g(self, is_need_refresh = False):
-        episodes = 1400 + 1
-        if is_need_refresh == True:
-            self.G_S = np.random.default_rng().exponential(1 / self.Xi, self.N * episodes)
-            self.G_PR = [
-                np.random.default_rng().exponential(1 / self.Xi, self.N * episodes),
-                np.random.default_rng().exponential(1 / self.Xi, self.N * episodes)
-            ]
-            self.G_PS = [
-                np.random.default_rng().exponential(1 / self.Xi, self.N * episodes),
-                np.random.default_rng().exponential(1 / self.Xi, self.N * episodes)
-            ]
-            self.G_SP = [
-                np.random.default_rng().exponential(1 / self.Xi, self.N * episodes),
-                np.random.default_rng().exponential(1 / self.Xi, self.N * episodes)
-            ]
-            self.G_P = [
-                np.random.default_rng().exponential(1 / self.Xi, self.N * episodes),
-                np.random.default_rng().exponential(1 / self.Xi, self.N * episodes)
-            ]
+        Lambda = self.Lambda[pu]
+        if self._get_P(action, time_slot, pu) >= Lambda:
+            return self._get_E_TS(action, time_slot, pu) + self._get_E_ambient(action, time_slot, pu)
         else:
-            self.G_S = self.arr_g_s[self.TimeSlot]
-            self.G_PR = [
-                0,
-                self.arr_g_p1r[self.TimeSlot]
-            ]
-            self.G_PS = [
-                self.arr_g_p2s[self.TimeSlot],
-                self.arr_g_p1s[self.TimeSlot]
-            ]
-            self.G_SP = [
-                self.arr_g_sp2[self.TimeSlot],
-                self.arr_g_sp1[self.TimeSlot]
-            ]
-            self.G_P = [
-                self.arr_g_p2[self.TimeSlot],
-                self.arr_g_p1[self.TimeSlot]
-            ]
+            return self._get_E_ambient(action, time_slot, pu)
+
+    def _get_I(self, action, time_slot, pu = None):
+        if pu is None:
+            pu = self._get_PU(action, time_slot)
+
+        return self.I[pu]
+
+    def _harvest_energy(self, action, time_slot, pu = None):
+        if pu is None:
+            pu = self._get_PU(action, time_slot)
+
+        return self._get_Hs(action, time_slot, pu)
+
+    def _get_record(self, action, time_slot):
+        # record: (v, k, mu, E, C, P)
+
+        if time_slot < 0:
+            return 0, 0, 0, 0, 0, 0
+        else:
+            if time_slot > len(self.records):
+                return None
+            else:
+                return  self.records[time_slot - 1]
+
+    def _add_record(self, record):
+        self.records.append(record)
+
+    def _get_reward(self, action, time_slot, pu = None):
+        if pu is None:
+            pu = self._get_PU(action, time_slot)
+
+        if pu == 0:
+            inside_log = 1 + self._get_P(action, time_slot, pu) * self._get_g_s(action, time_slot, pu) / self.N_0
+            return self._get_mu(action, time_slot, pu) * self.T_s * math.log(inside_log, 2)
+        else:
+            inside_log = 1 + self._get_P(action, time_slot, pu) * self._get_g_s(action, time_slot, pu) / (self.N_0 + self._get_P(action, time_slot, pu) * self._get_g_pr(action, time_slot, pu))
+            return self._get_mu(action, time_slot, pu) * self.T_s * math.log(inside_log, 2)
 
     def reset(self):
-        self.TimeSlot += 1
-        v = 1 if self.TimeSlot % self.N < self.A else 0
-        # v = 0 pu1
-        # v = 2 pu2
-        self.E_prev = 0
-        self.C = self.arr_C_0[int(self.TimeSlot / self.N)]
-        self.get_g()
-
-        return (v , self.E_prev , self.C , self.G_S , self.G_PR[1] ,self.G_PS[1] , self.G_PS[0] , self.G_SP[1] , self.G_SP[0] , self.G_P[1] , self.G_P[0])
+        #return : state, info
+        pass
 
     def step(self, action):
-        # tinh nang luong thu duoc buoc truoc va nang luong hien tai
-        k, P = self.map_action(action)
-        v = 1 if self.TimeSlot % self.N < self.A else 0
-        E_h = self.harvest_energy(v)
+        # return: state, action, reward, time_slot
+        prev_v, prev_k, prev_mu, prev_E, prev_C, prev_P = self._get_record(action, self.TimeSlot)
 
-        self.E_prev = E_h
-        self.C = min(self.C + k * E_h - (1 - k) * self.Mu * P * self.T_s, self.C_max)
-
-        # tinh phan thuong tu hanh dong
-        P_p1 = self.arr_P_p1[self.TimeSlot]
-        R_1 = self.Mu * self.T_s * np.log2(1 + P * self.G_S / (self.N_0 + P_p1 * self.G_PR[1])) if v == 1 else 0
-        R_2 = self.Mu * self.T_s * np.log2(1 + P * self.G_S / self.N_0) if v == 0 else 0
-
-        if k == 0 and v == 1 and P * self.T_s <= self.C and P * self.G_SP[1] <= self.I:
-            Reward = R_1
-        else:
-            if k == 0 and v == 0 and P * self.T_s <= self.C and P * self.G_SP[0] <= self.I:
-                Reward = R_2
-            else:
-                if k == 1 and P * self.T_s > self.C:
-                    Reward = 0
-                else:
-                    Reward = -self.Phi
-
-        # tinh trang thai hien tai
         self.TimeSlot += 1
-        v = 1 if self.TimeSlot % self.N < self.A else 0
-        self.get_g()
+        C = min(prev_C + prev_k * prev_E - (1-prev_k) * prev_mu * prev_P * self.T_s, self.C_max)
+        v = self._get_PU(action, self.TimeSlot)
 
-        Done = False
-        if (self.TimeSlot % self.N == 0 and self.TimeSlot != 0):
-            self.TimeSlot -= 1
-            Done = True
+        E = self._harvest_energy(action, self.TimeSlot, v)
+        k = self._get_k(action, self.TimeSlot, v)
+        mu = self._get_mu(action, self.TimeSlot, v)
+        P = self._get_P(action, self.TimeSlot, v)
+        g_sp = self._get_g_sp(action, self.TimeSlot, v)
+        I = self._get_I(action, self.TimeSlot, v)
 
-        State = (
-            v, self.E_prev, self.C, self.G_S, self.G_PR[1], self.G_PS[1], self.G_PS[2], self.G_SP[1], self.G_SP[0], self.G_P[1], self.G_P[0]
-        )
+        R = None
+        if k == 0:
+            if P * self.T_s <= C and P * g_sp <= I:
+                R = self._get_reward(action, self.TimeSlot, v)
+        else:
+            if P * self.T_s > C:
+                R = 0
 
-        return (State, Reward, Done)
+        if R is None:
+            R = -self.Phi
+
+        state = (
+                    v,
+                    prev_E,
+                    C,
+                    self._get_g_s(action, self.TimeSlot),
+                    self._get_g_pr(action, self.TimeSlot, 1),
+                    self._get_g_ps(action, self.TimeSlot, 1),
+                    self._get_g_sp(action, self.TimeSlot, 0),
+                    self._get_g_p(action, self.TimeSlot, 1),
+                    self._get_g_p(action, self.TimeSlot, 0)
+                )
+        record = (v, k, mu, E, C, P)
+        self._add_record(record)
+
+        return state, (k, P), R, self.TimeSlot
