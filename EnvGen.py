@@ -36,13 +36,13 @@ def P_and_C_and_E_ambient_generator(P_max = const_P_max , C_max = const_C_max , 
   E_ambient = rng.uniform(0 , E_max , N * Episodes)
   C_0 = rng.uniform(0 , C_max , Episodes)
 
-  idx = np.array([s for s in range(N * Episodes)])
-
-  idx_zero_p1 = np.where(idx % N >= A)
-  idx_zero_p2 = np.where(idx % N < A)
-
-  P_p1[idx_zero_p1] = 0
-  P_p2[idx_zero_p2] = 0
+  # idx = np.array([s for s in range(N * Episodes)])
+  #
+  # idx_zero_p1 = np.where(idx % N >= A)
+  # idx_zero_p2 = np.where(idx % N < A)
+  #
+  # P_p1[idx_zero_p1] = 0
+  # P_p2[idx_zero_p2] = 0
 
   np.savetxt('P_p1.txt' , P_p1 , delimiter = ' ')
   np.savetxt('P_p2.txt' , P_p2 , delimiter = ' ')
@@ -51,10 +51,10 @@ def P_and_C_and_E_ambient_generator(P_max = const_P_max , C_max = const_C_max , 
 
 
 #-------------------------------
-P_and_C_and_E_ambient_generator()
-g_generator()
+#P_and_C_and_E_ambient_generator()
+#g_generator()
 
-data = np.loadtxt('g_s.txt' , delimiter = ' ')
+data = np.loadtxt('P_p1.txt' , delimiter = ' ')
 print(data)
 
 plt.hist(data)

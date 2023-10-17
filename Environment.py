@@ -38,22 +38,18 @@ class Environment:
 
   def harvest_energy(self, v):
     E_ambient = self.arr_E_ambient[self.TimeSlot]
-    E_TS = self.Rho * self.T_s * self.Eta
+
     P_p1 = self.arr_P_p1[self.TimeSlot]
     P_p2 = self.arr_P_p2[self.TimeSlot]
 
+    Rho = self.Rho
+    if(v == 1 and P_p1 < self.Lambda) or (v == 0 and P_p2 < self.Lambda):
+      Rho = 0
+
+    E_TS = Rho * self.T_s * self.Eta
     E_TS *= P_p1 * self.g_p1s if v == 1 else P_p2 * self.g_p2s
 
-    if(v == 1 and P_p1 >= self.Lambda):
-      E_TS *= P_p1 * self.g_p1s
-      self.Mu = 1 - self.Rho
-    elif(v == 0 and P_p2 >= self.Lambda):
-      E_TS *= P_p2 * self.g_p2s
-      self.Mu = 1 - self.Rho
-    else:
-      self.Mu = 1
-      E_TS = 0
-
+    self.Mu = 1 - Rho
     E_h = E_TS + E_ambient
 
     return E_h
@@ -104,6 +100,10 @@ class Environment:
     if (k == 0 and v == 1 and P * self.T_s <= self.C and P * self.g_sp1 <= self.I):
       Reward = R_1
     elif (k == 0 and v == 0 and P * self.T_s <= self.C and P * self.g_sp2 <= self.I):
+      Reward = R_2
+    elif (self.Mu < 1 and k == 1 and v == 1 and P * self.T_s <= self.C and P * self.g_sp1 <= self.I):
+      Reward = R_1
+    elif (self.Mu < 1 and k == 1 and v == 0 and P * self.T_s <= self.C and P * self.g_sp2 <= self.I):
       Reward = R_2
     elif (k == 1 and P * self.T_s > self.C):
       Reward = 0

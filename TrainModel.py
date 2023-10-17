@@ -44,6 +44,7 @@ num_rewards = []
 max_rewards = []
 num_loss = []
 epsilon_values = []
+SU_rewards = []
 def select_action(state , t=0):
     global steps_done
     sample = random.random()
@@ -66,6 +67,7 @@ def plot_rewards(show_result = False):
     #loss_t = torch.tensor(num_loss , dtype=torch.float)
     #max_t = torch.tensor(max_rewards , dtype=torch.float)
     #epsilon_t = torch.tensor(epsilon_values ,dtype=torch.float)
+    SU_rewards_t = torch.tensor(SU_rewards , dtype=torch.float)
     means = []
     if len(num_rewards) >= 100:
         means = rewards_t.unfold(0 , 100 , 1).mean(1).view(-1)
@@ -75,12 +77,16 @@ def plot_rewards(show_result = False):
     else:
         plt.clf()
         plt.title('Training...')
-        #plt.subplot(121)
+        plt.subplot(121)
         plt.xlabel('Episode')
         plt.ylabel('Average Reward')
         plt.plot(rewards_t.numpy())
         if len(num_rewards) >= 100:
             plt.plot(means.numpy())
+        plt.subplot(122)
+        plt.xlabel('Episode')
+        plt.ylabel('Average Rate')
+        plt.plot(SU_rewards_t.numpy())
         #plt.subplot(122)
         #plt.xlabel('Time Slot')
         #plt.ylabel('Epsilon value')
@@ -136,6 +142,7 @@ for i_episode in range(NUM_EPISODES):
     state = torch.tensor(state , dtype=torch.float32 , device=device).unsqueeze(0)
     sum_reward = 0.
     max_r = 0.
+    sum_rate = 0.
     for t in count():
         action = select_action(state , i_episode)
         observation , reward , done = env.step(action.item())
@@ -145,12 +152,15 @@ for i_episode in range(NUM_EPISODES):
         else:
             next_state = torch.tensor(observation , dtype=torch.float32,device=device).unsqueeze(0)
 
-        sum_reward += reward.squeeze(0).item()
+        reward_item = reward.squeeze(0).item()
+        sum_reward += reward_item
+
+        sum_rate += reward_item if reward_item >= 0 else 0
         max_r = max(max_r , reward)
 
-        state = torch.round(state , decimals=1)
+        state = torch.round(state , decimals=2)
         if next_state != None:
-            next_state = torch.round(next_state , decimals=1)
+            next_state = torch.round(next_state , decimals=2)
 
         #print('state ' , state)
         #print('next state ' , next_state)
@@ -171,6 +181,7 @@ for i_episode in range(NUM_EPISODES):
         if done:
             num_rewards.append(sum_reward / NUM_STEP)
             max_rewards.append(max_r)
+            SU_rewards.append(sum_rate / NUM_STEP)
             plot_rewards()
             break
 
