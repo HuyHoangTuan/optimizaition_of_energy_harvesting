@@ -5,7 +5,8 @@ class Environment:
                Alpha = 0.003 , Eta = 0.9 , T_s = 1 , N_0 = 1 \
                , E_max = 0.2 ,\
                Phi = 1 , Rho = 0.4 , A = 10):
-    self.actions_space = [(0 , s * 0.05) for s in range(1 , 11 , 1)] + [(1,s * 0.05) for s in range(1 , 11 , 1)]
+    #self.actions_space = [(0 , s * 0.05) for s in range(1 , 11 , 1)] + [(1,s * 0.05) for s in range(1 , 11 , 1)]
+    self.actions_space = [(0, s * 0.025) for s in range(1, 21, 1)] + [(1, s * 0.05) for s in range(1, 21, 1)]
     self.P_max = P_max
     self.Xi = Xi
     self.Lambda = Lambda
@@ -125,4 +126,5 @@ class Environment:
 if __name__ == '__main__':
   env = Environment()
   State = env.reset()
-  print(env.actions_space)
+  #print(env.actions_space)
+  print(env.num_action_space())
