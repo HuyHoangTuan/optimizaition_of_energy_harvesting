@@ -187,7 +187,7 @@ class Environment:
         return state, None
 
     def step(self, action):
-        LogUtils.info('Environment', f'action: {action}, time_slot: {self.TimeSlot}')
+        # LogUtils.info('Environment', f'action: {action}, time_slot: {self.TimeSlot}')
         # return: state, action, reward, time_slot
         prev_v, prev_k, prev_mu, prev_E, prev_C, prev_P = self._get_record(action, self.TimeSlot)
 
