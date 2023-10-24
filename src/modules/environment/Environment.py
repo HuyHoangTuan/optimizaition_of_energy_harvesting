@@ -1,7 +1,6 @@
-import numpy as np
-import random
 import math
 from utils import LogUtils
+from utils import RandomUtils
 
 class Environment:
     # [PU2, PU1]
@@ -53,8 +52,6 @@ class Environment:
         self.C_max = 0.5
         self.TimeSlot = 0
 
-        # random
-        self.random = np.random.default_rng(seed)
 
     def _get_PU(self, action, time_slot):
         return 0 if time_slot > self.A else 1
@@ -80,13 +77,13 @@ class Environment:
             pu = self._get_PU(action, time_slot)
 
         # ambient resources
-        return self.random.uniform(0, self.E_max)
+        return RandomUtils.uniform(0, self.E_max)
 
     def _get_g_ps(self, action, time_slot, pu=None):
         if pu is None:
             pu = self._get_PU(action, time_slot)
 
-        return self.random.exponential(1.0 / self.Xi_ps[pu])
+        return RandomUtils.exponential(1.0 / self.Xi_ps[pu])
 
     def _get_E_TS(self, action, time_slot, pu=None):
         if pu is None:
@@ -100,25 +97,25 @@ class Environment:
         if pu is None:
             pu = self._get_PU(action, time_slot)
 
-        return self.random.exponential(1.0 / self.Xi_s)
+        return RandomUtils.exponential(1.0 / self.Xi_s)
 
     def _get_g_pr(self, action, time_slot, pu=None):
         if pu is None:
             pu = self._get_PU(action, time_slot)
 
-        return self.random.exponential(1.0 / self.Xi_pr[pu])
+        return RandomUtils.exponential(1.0 / self.Xi_pr[pu])
 
     def _get_g_sp(self, action, time_slot, pu=None):
         if pu is None:
             pu = self._get_PU(action, time_slot)
 
-        return self.random.exponential(1.0 / self.Xi_sp[pu])
+        return RandomUtils.exponential(1.0 / self.Xi_sp[pu])
 
     def _get_g_p(self, action, time_slot, pu=None):
         if pu is None:
             pu = self._get_PU(action, time_slot)
 
-        return self.random.exponential(1.0 / self.Xi_p[pu])
+        return RandomUtils.exponential(1.0 / self.Xi_p[pu])
 
     def _get_mu(self, action, time_slot, pu=None):
         if pu is None:

@@ -1,4 +1,3 @@
-import random
 import math
 import torch
 import torch.nn as nn
@@ -8,13 +7,12 @@ import matplotlib
 import matplotlib.pyplot as plt
 from itertools import count
 
-from utils import LogUtils
+from utils import LogUtils, RandomUtils
 
 from modules.environment import Environment
 from modules.model import DQNModel
 from modules.relay import ReplayMemory, Transition
 
-random.seed(3)
 
 is_ipython = 'inline' in matplotlib.get_backend()
 if is_ipython:
@@ -23,14 +21,14 @@ if is_ipython:
 class Train:
     def __init__(
             self,
-            env=Environment(),
-            batch_size=128,
-            gamma=0.99,
-            eps_start=0.9,
-            eps_end=0.05,
-            eps_decay=1000,
-            tau=0.005,
-            learning_rate=1e-4,
+            env = Environment(),
+            batch_size = 128,
+            gamma = 0.99,
+            eps_start = 0.9,
+            eps_end = 0.05,
+            eps_decay = 1000,
+            tau = 0.005,
+            learning_rate = 1e-4,
     ):
         self.env = env
 
@@ -56,7 +54,7 @@ class Train:
         self.target_net = DQNModel(n_observations, n_actions).to(self.device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
 
-        self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=self.learning_rate, amsgrad=True)
+        self.optimizer = optim.AdamW(self.policy_net.parameters(), lr = self.learning_rate, amsgrad = True)
         self.memory = ReplayMemory(10000)
 
         self.steps_done = 0
@@ -64,18 +62,23 @@ class Train:
         self.SU_rewards = []
 
     def select_action(self, state):
-        sample = random.random()
-        eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * math.exp(-1. * self.steps_done * self.eps_decay)
+        sample = RandomUtils.custom_random()
+        eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * math.exp(
+            -1. * self.steps_done * self.eps_decay
+            )
         self.steps_done += 1
         if sample > eps_threshold:
             with torch.no_grad():
                 return self.policy_net(state).max(1)[1].view(1, 1)
         else:
-            return torch.tensor([[random.sample([s for s in range(len(self.env.actions_space))], 1)[0]]], device=self.device, dtype=torch.long)
+            return torch.tensor(
+                [[RandomUtils.sample([s for s in range(len(self.env.actions_space))], 1)[0]]], device = self.device,
+                dtype = torch.long
+                )
 
-    def plot_rewards(self, show_result=False):
-        plt.figure(num=1)
-        rewards_t = torch.tensor(self.rewards, dtype=torch.float)
+    def plot_rewards(self, show_result = False):
+        plt.figure(num = 1)
+        rewards_t = torch.tensor(self.rewards, dtype = torch.float)
 
         if show_result:
             plt.title('Result')
@@ -86,17 +89,19 @@ class Train:
         plt.ylabel('Reward')
         plt.plot(rewards_t.numpy())
 
+        num_to_get_mean = 100
+
         # Take 100 episode averages and plot them too
-        if len(rewards_t) >= 100:
-            means = rewards_t.unfold(0, 100, 1).mean(1).view(-1)
-            means = torch.cat((torch.zeros(99), means))
+        if len(rewards_t) >= num_to_get_mean:
+            means = rewards_t.unfold(0, num_to_get_mean, 1).mean(1).view(-1)
+            means = torch.cat((torch.zeros(num_to_get_mean), means))
             plt.plot(means.numpy())
 
         plt.pause(0.001)  # pause a bit so that plots are updated
         if is_ipython:
             if not show_result:
                 display.display(plt.gcf())
-                display.clear_output(wait=True)
+                display.clear_output(wait = True)
             else:
                 display.display(plt.gcf())
 
@@ -113,8 +118,8 @@ class Train:
                     batch.next_state
                 )
             ),
-            device=self.device,
-            dtype=torch.bool
+            device = self.device,
+            dtype = torch.bool
         )
         non_final_next_states = torch.cat([s for s in batch.next_state if s is not None])
 
@@ -123,7 +128,7 @@ class Train:
         reward_batch = torch.cat(batch.reward)
 
         state_action_values = self.policy_net(state_batch).gather(1, action_batch)
-        next_state_values = torch.zeros(self.batch_size, device=self.device)
+        next_state_values = torch.zeros(self.batch_size, device = self.device)
         with torch.no_grad():
             next_state_values[non_final_mask] = self.target_net(non_final_next_states).max(1)[0]
 
@@ -144,19 +149,21 @@ class Train:
             num_episodes = 1500
         else:
             num_episodes = 300
+        best_reward = -1000
 
         for i_episode in range(num_episodes):
             state, info = self.env.reset()
-            state = torch.tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
+            state = torch.tensor(state, dtype = torch.float32, device = self.device).unsqueeze(0)
             # LogUtils.info('TRAIN', f'episode: {i_episode}, state: {state}')
             sum_reward = 0
             num_step = 0
+
             for t in count():
-                num_step +=1
+                num_step += 1
                 action = self.select_action(state)
                 observation, _action, reward, time_slot = self.env.step(action.item())
-                LogUtils.info('TRAIN', f'observation: {observation}\naction: {action}\nreward: {reward}\ntime_slot: {time_slot}')
-                reward = torch.tensor([reward], device=self.device)
+                # LogUtils.info('TRAIN', f'observation: {observation}\naction: {action}\nreward: {reward}\ntime_slot: {time_slot}')
+                reward = torch.tensor([reward], device = self.device)
 
                 reward_item = reward.squeeze(0).item()
                 sum_reward += reward_item
@@ -166,7 +173,7 @@ class Train:
                 if done == True:
                     next_state = None
                 else:
-                    next_state = torch.tensor(observation, dtype=torch.float32, device=self.device).unsqueeze(0)
+                    next_state = torch.tensor(observation, dtype = torch.float32, device = self.device).unsqueeze(0)
 
                 self.memory.push(state, action, next_state, reward)
 
@@ -178,16 +185,24 @@ class Train:
                 policy_net_state_dict = self.policy_net.state_dict()
 
                 for key in policy_net_state_dict:
-                    target_net_state_dict[key] = policy_net_state_dict[key] * self.tau + target_net_state_dict[key] * (1 - self.tau)
+                    target_net_state_dict[key] = policy_net_state_dict[key] * self.tau + target_net_state_dict[key] * (
+                                1 - self.tau)
 
                 self.target_net.load_state_dict(target_net_state_dict)
 
                 # LogUtils.info('TRAIN', f'episode: {i_episode}_{t}, time_slot: {time_slot}, reward: {reward.item()}')
                 if done:
-                    self.rewards.append(sum_reward/num_step)
+                    avg_reward = sum_reward / num_step
+                    if best_reward < avg_reward:
+                        best_reward = avg_reward
+                        torch.save(self.policy_net.state_dict(), 'res/check_point/policy_model.pth')
+                        LogUtils.info('TRAIN', f'SAVE MODEL: best_reward: {best_reward}')
+                    self.rewards.append(avg_reward)
                     self.plot_rewards()
                     break
 
-        self.plot_rewards(show_result=True)
+            LogUtils.info('TRAIN', f'({i_episode}/{num_episodes}) reward: {sum_reward / num_step}')
+
+        self.plot_rewards(show_result = True)
         plt.ioff()
         plt.show()
