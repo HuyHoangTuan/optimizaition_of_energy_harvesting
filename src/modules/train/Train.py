@@ -143,17 +143,23 @@ class Train:
         if torch.cuda.is_available():
             num_episodes = 1500
         else:
-            num_episodes = 100
+            num_episodes = 300
 
         for i_episode in range(num_episodes):
             state, info = self.env.reset()
             state = torch.tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
             # LogUtils.info('TRAIN', f'episode: {i_episode}, state: {state}')
+            sum_reward = 0
+            num_step = 0
             for t in count():
+                num_step +=1
                 action = self.select_action(state)
                 observation, _action, reward, time_slot = self.env.step(action.item())
                 LogUtils.info('TRAIN', f'observation: {observation}\naction: {action}\nreward: {reward}\ntime_slot: {time_slot}')
                 reward = torch.tensor([reward], device=self.device)
+
+                reward_item = reward.squeeze(0).item()
+                sum_reward += reward_item
 
                 done = True if time_slot >= self.env.N else False
 
@@ -178,7 +184,7 @@ class Train:
 
                 # LogUtils.info('TRAIN', f'episode: {i_episode}_{t}, time_slot: {time_slot}, reward: {reward.item()}')
                 if done:
-                    self.rewards.append(t + 1)
+                    self.rewards.append(sum_reward/num_step)
                     self.plot_rewards()
                     break
 
