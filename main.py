@@ -15,5 +15,4 @@ if __name__ == '__main__':
     train = Train()
     train.start_train()
 
-
     LogUtils.info("MAIN", "END")
