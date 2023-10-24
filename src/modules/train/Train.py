@@ -22,12 +22,12 @@ class Train:
     def __init__(
             self,
             env = Environment(),
-            batch_size = 128,
+            batch_size = 256,
             gamma = 0.99,
-            eps_start = 0.9,
-            eps_end = 0.05,
-            eps_decay = 1000,
-            tau = 0.005,
+            eps_start = 0.5,
+            eps_end = 0.01,
+            eps_decay = 2000,
+            tau = 0.001,
             learning_rate = 1e-4,
     ):
         self.env = env
@@ -55,7 +55,7 @@ class Train:
         self.target_net.load_state_dict(self.policy_net.state_dict())
 
         self.optimizer = optim.AdamW(self.policy_net.parameters(), lr = self.learning_rate, amsgrad = True)
-        self.memory = ReplayMemory(10000)
+        self.memory = ReplayMemory(50000)
 
         self.steps_done = 0
         self.rewards = []
@@ -69,7 +69,11 @@ class Train:
         self.steps_done += 1
         if sample > eps_threshold:
             with torch.no_grad():
-                return self.policy_net(state).max(1)[1].view(1, 1)
+                action = self.policy_net(state).max(1)[1].view(1, 1)
+                noise = torch.tensor([[RandomUtils.normal(0, 0.1)]], device = self.device, dtype = torch.long)
+                action = action + noise
+                action = torch.clamp(action, 0, len(self.env.actions_space) - 1)
+                return action
         else:
             return torch.tensor(
                 [[RandomUtils.sample([s for s in range(len(self.env.actions_space))], 1)[0]]], device = self.device,
@@ -77,27 +81,40 @@ class Train:
                 )
 
     def plot_rewards(self, show_result = False):
-        plt.figure(num = 1)
-        rewards_t = torch.tensor(self.rewards, dtype = torch.float)
 
-        if show_result:
-            plt.title('Result')
-        else:
+        plt.figure(num =1, figsize = (10, 6), dpi = 100)
+        num_to_get_mean = 100
+
+        if show_result is False:
             plt.clf()
-            plt.title('Training...')
+
+        # Plot reward
+        # ---------------------------------------------------------------------
+        plt.subplot(1, 2, 1)
+
+        plt.title('Rewards')
+
+        rewards_t = torch.tensor(self.rewards, dtype = torch.float)
         plt.xlabel('Episode')
         plt.ylabel('Reward')
         plt.plot(rewards_t.numpy())
 
-        num_to_get_mean = 100
+        # ---------------------------------------------------------------------
 
-        # Take 100 episode averages and plot them too
-        if len(rewards_t) >= num_to_get_mean:
-            means = rewards_t.unfold(0, num_to_get_mean, 1).mean(1).view(-1)
-            means = torch.cat((torch.zeros(num_to_get_mean), means))
-            plt.plot(means.numpy())
+        # Plot average SU reward
+        # ---------------------------------------------------------------------
+        plt.subplot(1, 2, 2)
+
+        plt.title('Average SU Rewards')
+
+        SU_rewards_t = torch.tensor(self.SU_rewards, dtype = torch.float)
+        plt.xlabel('Episode')
+        plt.ylabel('Average SU Reward (bits/s/Hz)')
+        plt.plot(SU_rewards_t.numpy())
 
         plt.pause(0.001)  # pause a bit so that plots are updated
+        # ---------------------------------------------------------------------
+
         if is_ipython:
             if not show_result:
                 display.display(plt.gcf())
@@ -150,6 +167,8 @@ class Train:
         else:
             num_episodes = 300
         best_reward = -1000
+        sum_reward_episode = 0
+        scheduler = optim.lr_scheduler.ExponentialLR(self.optimizer, gamma = 0.99)
 
         for i_episode in range(num_episodes):
             state, info = self.env.reset()
@@ -190,18 +209,23 @@ class Train:
 
                 self.target_net.load_state_dict(target_net_state_dict)
 
-                # LogUtils.info('TRAIN', f'episode: {i_episode}_{t}, time_slot: {time_slot}, reward: {reward.item()}')
                 if done:
-                    avg_reward = sum_reward / num_step
-                    if best_reward < avg_reward:
-                        best_reward = avg_reward
-                        torch.save(self.policy_net.state_dict(), 'res/check_point/policy_model.pth')
-                        LogUtils.info('TRAIN', f'SAVE MODEL: best_reward: {best_reward}')
-                    self.rewards.append(avg_reward)
-                    self.plot_rewards()
+                    LogUtils.info('TRAIN', f'({i_episode}/{num_episodes}) reward: {sum_reward}')
                     break
 
-            LogUtils.info('TRAIN', f'({i_episode}/{num_episodes}) reward: {sum_reward / num_step}')
+            sum_reward_episode += sum_reward
+            self.rewards.append(sum_reward)
+
+            avg_reward = sum_reward_episode / (i_episode + 1)
+            if best_reward < avg_reward:
+                best_reward = avg_reward
+                torch.save(self.policy_net.state_dict(), 'res/check_point/policy_model.pth')
+                LogUtils.info('TRAIN', f'SAVE MODEL: best_reward: {best_reward}')
+
+            self.SU_rewards.append(avg_reward)
+            self.plot_rewards()
+
+            scheduler.step()
 
         self.plot_rewards(show_result = True)
         plt.ioff()

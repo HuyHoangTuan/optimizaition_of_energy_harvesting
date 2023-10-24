@@ -1,7 +1,5 @@
 import math
-from utils import LogUtils
-from utils import RandomUtils
-
+from utils import LogUtils, RandomUtils
 class Environment:
     # [PU2, PU1]
     def __init__(
@@ -24,7 +22,7 @@ class Environment:
             Phi=1,
             Rho=0.4,
             A=10,
-            seed=2,
+            C_max=0.5,
     ):
         self.actions_space = [(0, s * 0.05) for s in range(1, 11, 1)] + [(1, s * 0.05) for s in range(1, 11, 1)]
         self.records = []
@@ -49,8 +47,9 @@ class Environment:
         self.Phi = Phi
         self.Rho = Rho
         self.A = A
-        self.C_max = 0.5
+        self.C_max = C_max
         self.TimeSlot = 0
+        self.init_state = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 
 
     def _get_PU(self, action, time_slot):
@@ -176,12 +175,11 @@ class Environment:
             return self._get_mu(action, time_slot, pu) * self.T_s * math.log(inside_log, 2)
 
     def reset(self):
-        state = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 
         self.TimeSlot = 0
         self.records = []
 
-        return state, None
+        return self.init_state, None
 
     def step(self, action):
         # LogUtils.info('Environment', f'action: {action}, time_slot: {self.TimeSlot}')
@@ -210,6 +208,8 @@ class Environment:
         if R is None:
             R = -self.Phi
 
+        R = self._reward_shift(R)
+
         state = (
             v,
             prev_E,
@@ -233,3 +233,6 @@ class Environment:
 
     def get_num_actions(self):
         return len(self.actions_space)
+
+    def _reward_shift(self, reward):
+        return reward + self.Phi
