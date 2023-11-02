@@ -51,6 +51,14 @@ class Environment:
         self.TimeSlot = 0
         self.init_state = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 
+        # init
+        self._E_ambient = None
+        self._g_s = None
+        self._g_pr = [None, None]
+        self._g_ps = [None, None]
+        self._g_p = [None, None]
+        self._g_sp = [None, None]
+
 
     def _get_PU(self, action, time_slot):
         return 0 if time_slot > self.A else 1
@@ -61,7 +69,8 @@ class Environment:
 
         # transmit power
         _, P = self.actions_space[action]
-        return P
+        return 10**(P / 10)
+        # return P
 
     def _get_k(self, action, time_slot, pu=None):
         if pu is None:
@@ -75,14 +84,11 @@ class Environment:
         if pu is None:
             pu = self._get_PU(action, time_slot)
 
+        if self._E_ambient is None:
+            self._E_ambient = RandomUtils.uniform(0, self.E_max, self.N)
+
         # ambient resources
-        return RandomUtils.uniform(0, self.E_max)
-
-    def _get_g_ps(self, action, time_slot, pu=None):
-        if pu is None:
-            pu = self._get_PU(action, time_slot)
-
-        return RandomUtils.exponential(1.0 / self.Xi_ps[pu])
+        return self._E_ambient[time_slot - 1]
 
     def _get_E_TS(self, action, time_slot, pu=None):
         if pu is None:
@@ -96,25 +102,44 @@ class Environment:
         if pu is None:
             pu = self._get_PU(action, time_slot)
 
-        return RandomUtils.exponential(1.0 / self.Xi_s)
+        if self._g_s is None:
+            self._g_s = RandomUtils.exponential(1.0 / self.Xi_s, self.N)
+
+        return self._g_s[time_slot - 1]
 
     def _get_g_pr(self, action, time_slot, pu=None):
         if pu is None:
             pu = self._get_PU(action, time_slot)
 
-        return RandomUtils.exponential(1.0 / self.Xi_pr[pu])
+        if self._g_pr[pu] is None:
+            self._g_pr[pu] = RandomUtils.exponential(1.0 / self.Xi_pr[pu], self.N)
+        return self._g_pr[pu][time_slot - 1]
 
-    def _get_g_sp(self, action, time_slot, pu=None):
+    def _get_g_ps(self, action, time_slot, pu=None):
         if pu is None:
             pu = self._get_PU(action, time_slot)
 
-        return RandomUtils.exponential(1.0 / self.Xi_sp[pu])
+        if self._g_ps[pu] is None:
+            self._g_ps[pu] = RandomUtils.exponential(1.0 / self.Xi_ps[pu], self.N)
+
+        return self._g_ps[pu][time_slot - 1]
 
     def _get_g_p(self, action, time_slot, pu=None):
         if pu is None:
             pu = self._get_PU(action, time_slot)
 
-        return RandomUtils.exponential(1.0 / self.Xi_p[pu])
+        if self._g_p[pu] is None:
+            self._g_p[pu] = RandomUtils.exponential(1.0 / self.Xi_p[pu], self.N)
+
+        return self._g_p[pu][time_slot - 1]
+
+    def _get_g_sp(self, action, time_slot, pu=None):
+        if pu is None:
+            pu = self._get_PU(action, time_slot)
+
+        if self._g_sp[pu] is None:
+            self._g_sp[pu] = RandomUtils.exponential(1.0 / self.Xi_sp[pu], self.N)
+        return self._g_sp[pu][time_slot - 1]
 
     def _get_mu(self, action, time_slot, pu=None):
         if pu is None:
@@ -225,7 +250,6 @@ class Environment:
         )
         record = (v, k, mu, E, C, P)
         self._add_record(record)
-
         return state, (k, P), R, self.TimeSlot
 
     def get_num_states(self):

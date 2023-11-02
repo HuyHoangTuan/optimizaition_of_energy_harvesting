@@ -210,7 +210,7 @@ class Train:
                 self.target_net.load_state_dict(target_net_state_dict)
 
                 if done:
-                    LogUtils.info('TRAIN', f'({i_episode}/{num_episodes}) reward: {sum_reward}')
+                    LogUtils.info('TRAIN', f'({i_episode + 1}/{num_episodes}) reward: {sum_reward}')
                     break
 
             sum_reward_episode += sum_reward
