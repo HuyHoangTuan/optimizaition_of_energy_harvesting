@@ -1,12 +1,13 @@
 import numpy as np
 import random
+import math
 class Environment:
   def __init__(self, P_max = 1 , Xi = 0.1 , Lambda = 0.1 , N = 20 , I = 0.5 , Gamma = 0.99 , \
                Alpha = 0.003 , Eta = 0.9 , T_s = 1 , N_0 = 1 \
                , E_max = 0.2 ,\
                Phi = 1 , Rho = 0.4 , A = 10):
     #self.actions_space = [(0 , s * 0.05) for s in range(1 , 11 , 1)] + [(1,s * 0.05) for s in range(1 , 11 , 1)]
-    self.actions_space = [(0, s * 0.025) for s in range(1, 21, 1)] + [(1, s * 0.05) for s in range(1, 21, 1)]
+    self.actions_space = [(0, s * 0.025) for s in range(1, 25, 1)] + [(1, s * 0.025) for s in range(1, 25, 1)]
     self.P_max = P_max
     self.Xi = Xi
     self.Lambda = Lambda
@@ -93,19 +94,22 @@ class Environment:
     self.E_prev = E_h
 
     self.C = min(self.C + k * E_h - (1 - k) * self.Mu * P * self.T_s, self.C_max)
+    self.C = max(self.C , 0)
 
     #tinh phan thuong tu hanh dong
     P_p1 = self.arr_P_p1[self.TimeSlot]
-    R_1 = self.Mu * self.T_s * np.log2(1 + P * self.g_s / (self.N_0 + P_p1 * self.g_p1r)) if v == 1 else 0
-    R_2 = self.Mu * self.T_s * np.log2(1 + P * self.g_s / self.N_0) if v == 0 else 0
+    P_dbW = 10 * math.log10(P)
+    P_p1_dbW = 10 * math.log10(P_p1)
+    R_1 = self.Mu * self.T_s * np.log2(1 + P_dbW * self.g_s / (self.N_0 + P_p1_dbW * self.g_p1r)) if v == 1 else 0
+    R_2 = self.Mu * self.T_s * np.log2(1 + P_dbW * self.g_s / self.N_0) if v == 0 else 0
     if (k == 0 and v == 1 and P * self.T_s <= self.C and P * self.g_sp1 <= self.I):
       Reward = R_1
     elif (k == 0 and v == 0 and P * self.T_s <= self.C and P * self.g_sp2 <= self.I):
       Reward = R_2
-    elif (self.Mu < 1 and k == 1 and v == 1 and P * self.T_s <= self.C and P * self.g_sp1 <= self.I):
-      Reward = R_1
-    elif (self.Mu < 1 and k == 1 and v == 0 and P * self.T_s <= self.C and P * self.g_sp2 <= self.I):
-      Reward = R_2
+    # elif (self.Mu < 1 and k == 1 and v == 1 and P * self.T_s <= self.C and P * self.g_sp1 <= self.I):
+    #   Reward = R_1
+    # elif (self.Mu < 1 and k == 1 and v == 0 and P * self.T_s <= self.C and P * self.g_sp2 <= self.I):
+    #   Reward = R_2
     elif (k == 1 and P * self.T_s > self.C):
       Reward = 0
     else:
@@ -126,5 +130,5 @@ class Environment:
 if __name__ == '__main__':
   env = Environment()
   State = env.reset()
-  #print(env.actions_space)
-  print(env.num_action_space())
+  print(env.actions_space)
+  #print(env.num_action_space())
