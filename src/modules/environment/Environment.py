@@ -24,7 +24,7 @@ class Environment:
             A=10,
             C_max=0.5,
     ):
-        self.actions_space = [(0, s * 0.05) for s in range(1, 11, 1)] + [(1, s * 0.05) for s in range(1, 11, 1)]
+        self.actions_space = [(0, s * 0.05) for s in range(1, N + 1, 1)] + [(1, s * 0.05) for s in range(1, N+1, 1)]
         self.records = []
 
         self.P_max = P_max
