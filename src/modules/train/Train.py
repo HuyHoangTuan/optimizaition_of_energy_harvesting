@@ -24,18 +24,18 @@ class Train:
             env = Environment(),
             batch_size = 256,
             gamma = 0.99,
-            eps_start = 0.5,
-            eps_end = 0.01,
-            eps_decay = 2000,
+            eps_max = 1,
+            eps_min = 0.01,
+            eps_decay = 0.001,
             tau = 0.001,
-            learning_rate = 1e-4,
+            learning_rate = 0.003, #alpha
     ):
         self.env = env
 
         self.batch_size = batch_size
         self.gamma = gamma
-        self.eps_start = eps_start
-        self.eps_end = eps_end
+        self.eps_max = eps_max
+        self.eps_min = eps_min
         self.eps_decay = eps_decay
         self.tau = tau
         self.learning_rate = learning_rate
@@ -54,25 +54,25 @@ class Train:
         self.target_net = DQNModel(n_observations, n_actions).to(self.device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
 
-        self.optimizer = optim.AdamW(self.policy_net.parameters(), lr = self.learning_rate, amsgrad = True)
+        self.optimizer = optim.SGD(self.policy_net.parameters(), lr = self.learning_rate)
         self.memory = ReplayMemory(50000)
 
-        self.steps_done = 0
+        # self.steps_done = 0
         self.rewards = []
         self.SU_rewards = []
 
-    def select_action(self, state):
+    def select_action(self, state, time_slot = 0):
         sample = RandomUtils.custom_random()
-        eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * math.exp(
-            -1. * self.steps_done * self.eps_decay
+        eps_threshold = self.eps_min + (self.eps_max - self.eps_min) * math.exp(
+            -1. * time_slot * self.eps_decay
             )
-        self.steps_done += 1
+        # self.steps_done += 1
         if sample > eps_threshold:
             with torch.no_grad():
                 action = self.policy_net(state).max(1)[1].view(1, 1)
-                noise = torch.tensor([[RandomUtils.normal(0, 0.1)]], device = self.device, dtype = torch.long)
-                action = action + noise
-                action = torch.clamp(action, 0, len(self.env.actions_space) - 1)
+                # noise = torch.tensor([[RandomUtils.normal(0, 0.1)]], device = self.device, dtype = torch.long)
+                # action = action + noise
+                # action = torch.clamp(action, 0, len(self.env.actions_space) - 1)
                 return action
         else:
             return torch.tensor(
@@ -151,7 +151,7 @@ class Train:
 
         expected_state_action_values = (next_state_values * self.gamma) + reward_batch
 
-        criterion = nn.SmoothL1Loss()
+        criterion = nn.MSELoss()
         loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
 
         self.optimizer.zero_grad()
@@ -176,10 +176,10 @@ class Train:
             # LogUtils.info('TRAIN', f'episode: {i_episode}, state: {state}')
             sum_reward = 0
             num_step = 0
-
+            time_slot = 0
             for t in count():
                 num_step += 1
-                action = self.select_action(state)
+                action = self.select_action(state, time_slot)
                 observation, _action, reward, time_slot = self.env.step(action.item())
                 # LogUtils.info('TRAIN', f'observation: {observation}\naction: {action}\nreward: {reward}\ntime_slot: {time_slot}')
                 reward = torch.tensor([reward], device = self.device)

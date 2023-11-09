@@ -24,7 +24,7 @@ class Environment:
             A=10,
             C_max=0.5,
     ):
-        self.actions_space = [(0, s * 0.05) for s in range(1, N + 1, 1)] + [(1, s * 0.05) for s in range(1, N+1, 1)]
+        # self.actions_space = [(0, s * 0.05) for s in range(1, N + 1, 1)] + [(1, s * 0.05) for s in range(1, N+1, 1)]
         self.records = []
 
         self.P_max = P_max
@@ -52,6 +52,7 @@ class Environment:
         self.init_state = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 
         # init
+        self._P_p = [None, None]
         self._E_ambient = None
         self._g_s = None
         self._g_pr = [None, None]
@@ -59,9 +60,18 @@ class Environment:
         self._g_p = [None, None]
         self._g_sp = [None, None]
 
+        self.actions_space = []
+        _P = RandomUtils.custom_random(size= 2 * N) * max(self.I) / (1/max(self.Xi_sp))
+        for i in range(0, 2 * N):
+            if i < N:
+                self.actions_space.append((0, _P[i]))
+            else:
+                self.actions_space.append((1, _P[i]))
+        RandomUtils.shuffle(self.actions_space)
+
 
     def _get_PU(self, action, time_slot):
-        return 0 if time_slot > self.A else 1
+        return 1 if time_slot > self.A else 0
 
     def _get_P(self, action, time_slot, pu=None):
         if pu is None:
@@ -69,8 +79,18 @@ class Environment:
 
         # transmit power
         _, P = self.actions_space[action]
-        return 10**(P / 10)
-        # return P
+        # _P = 10 * math.log10(P/(10**-3))
+        # return 10**(P / 10)
+        return P
+    def _get_P_p(self, action, time_slot, pu = None):
+        if pu is None:
+            pu = self._get_PU(action, time_slot)
+
+        if self._P_p[pu] is None:
+            self._P_p[pu] = RandomUtils.uniform(0, self.P_max, self.N)
+        # print(f'time_slot = {time_slot}')
+        # _P_p = 10 * math.log10(self._P_p[pu][time_slot - 1]/(10**-3))
+        return self._P_p[pu][time_slot - 1]
 
     def _get_k(self, action, time_slot, pu=None):
         if pu is None:
@@ -95,8 +115,7 @@ class Environment:
             pu = self._get_PU(action, time_slot)
 
         # energy harvested from the PU(time_slot)
-        return self.Rho * self.T_s * self._get_P(action, time_slot, pu) * self.Eta * self._get_g_ps(action, time_slot,
-                                                                                                    pu)
+        return self.Rho * self.T_s * self._get_P_p(action, time_slot, pu) * self.Eta * self._get_g_ps(action, time_slot, pu)
 
     def _get_g_s(self, action, time_slot, pu=None):
         if pu is None:
@@ -146,7 +165,7 @@ class Environment:
             pu = self._get_PU(action, time_slot)
 
         Lambda = self.Lambda[pu]
-        if self._get_P(action, time_slot, pu) >= Lambda:
+        if self._get_P_p(action, time_slot, pu) >= Lambda:
             return 1 - self.Rho
         else:
             return 1
@@ -156,7 +175,7 @@ class Environment:
             pu = self._get_PU(action, time_slot)
 
         Lambda = self.Lambda[pu]
-        if self._get_P(action, time_slot, pu) >= Lambda:
+        if self._get_P_p(action, time_slot, pu) >= Lambda:
             return self._get_E_TS(action, time_slot, pu) + self._get_E_ambient(action, time_slot, pu)
         else:
             return self._get_E_ambient(action, time_slot, pu)
@@ -196,7 +215,7 @@ class Environment:
             return self._get_mu(action, time_slot, pu) * self.T_s * math.log(inside_log, 2)
         else:
             inside_log = 1 + self._get_P(action, time_slot, pu) * self._get_g_s(action, time_slot, pu) / (
-                        self.N_0 + self._get_P(action, time_slot, pu) * self._get_g_pr(action, time_slot, pu))
+                        self.N_0 + self._get_P_p(action, time_slot, pu) * self._get_g_pr(action, time_slot, pu))
             return self._get_mu(action, time_slot, pu) * self.T_s * math.log(inside_log, 2)
 
     def reset(self):
@@ -221,6 +240,7 @@ class Environment:
         P = self._get_P(action, self.TimeSlot, v)
         g_sp = self._get_g_sp(action, self.TimeSlot, v)
         I = self._get_I(action, self.TimeSlot, v)
+        # print(f'k = {k}, E = {E}, mu = {mu}, P = {P}, C = {C}, k*E = {k*E}, (1-k)*mu*P*T_s = {(1-k)*mu*P*self.T_s}')
 
         R = None
         if k == 0:
@@ -232,7 +252,7 @@ class Environment:
 
         if R is None:
             R = -self.Phi
-
+        print(f'k = {k}, P*T_s = {P * self.T_s}, P*g_sp = {P * g_sp}, I = {I}, C = {C}, R = {R}')
         R = self._reward_shift(R)
 
         state = (
@@ -259,4 +279,4 @@ class Environment:
         return len(self.actions_space)
 
     def _reward_shift(self, reward):
-        return reward + self.Phi
+        return reward
