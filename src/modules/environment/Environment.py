@@ -25,16 +25,12 @@ class Environment:
             C_max=0.5,
     ):
         # self.actions_space = [(0, s * 0.05) for s in range(1, N + 1, 1)] + [(1, s * 0.05) for s in range(1, N+1, 1)]
-        self.records = []
-
         self.P_max = P_max
-
         self.Xi_s = Xi_s
         self.Xi_pr = Xi_pr
         self.Xi_ps = Xi_ps
         self.Xi_p = Xi_p
         self.Xi_sp = Xi_sp
-
         self.Lambda = Lambda
         self.N = N
         self.I = I
@@ -48,10 +44,9 @@ class Environment:
         self.Rho = Rho
         self.A = A
         self.C_max = C_max
-        self.TimeSlot = 0
-        self.init_state = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 
         # init
+        self.init_state = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
         self._P_p = [None, None]
         self._E_ambient = None
         self._g_s = None
@@ -59,16 +54,26 @@ class Environment:
         self._g_ps = [None, None]
         self._g_p = [None, None]
         self._g_sp = [None, None]
+        self.reset()
 
         self.actions_space = []
-        _P = RandomUtils.custom_random(size= 2 * N) * max(self.I) / (1/max(self.Xi_sp))
-        for i in range(0, 2 * N):
-            if i < N:
-                self.actions_space.append((0, _P[i]))
+        for i in range(0, 2 * self.N):
+            pu = self._get_PU(None, (i % N) + 1)
+            _range = 0
+            _scale = 0
+            if pu == 0:
+                _range = self.C_max/(self.T_s)
+                _scale = 0.1
             else:
-                self.actions_space.append((1, _P[i]))
-        RandomUtils.shuffle(self.actions_space)
+                _range = self._get_I(None, (i % N) + 1)/(self.T_s)
+                _scale = 0.01
+            _P = RandomUtils.normal(_range, _scale)
 
+            if i < self.N:
+                self.actions_space.append((0, _P))
+            else:
+                self.actions_space.append((1, _P))
+        RandomUtils.shuffle(self.actions_space)
 
     def _get_PU(self, action, time_slot):
         return 1 if time_slot > self.A else 0
@@ -212,6 +217,7 @@ class Environment:
 
         if pu == 0:
             inside_log = 1 + self._get_P(action, time_slot, pu) * self._get_g_s(action, time_slot, pu) / self.N_0
+            print(inside_log)
             return self._get_mu(action, time_slot, pu) * self.T_s * math.log(inside_log, 2)
         else:
             inside_log = 1 + self._get_P(action, time_slot, pu) * self._get_g_s(action, time_slot, pu) / (
@@ -219,9 +225,10 @@ class Environment:
             return self._get_mu(action, time_slot, pu) * self.T_s * math.log(inside_log, 2)
 
     def reset(self):
-
-        self.TimeSlot = 0
         self.records = []
+        self.TimeSlot = 0
+
+
 
         return self.init_state, None
 
@@ -244,7 +251,7 @@ class Environment:
 
         R = None
         if k == 0:
-            if P * self.T_s <= C and P * g_sp <= I:
+            if P * self.T_s <= C and v * P * g_sp <= I:
                 R = self._get_reward(action, self.TimeSlot, v)
         else:
             if P * self.T_s > C:
@@ -252,7 +259,7 @@ class Environment:
 
         if R is None:
             R = -self.Phi
-        print(f'k = {k}, P*T_s = {P * self.T_s}, P*g_sp = {P * g_sp}, I = {I}, C = {C}, R = {R}')
+        print(f'k = {k}, v = {v}, P = {P}, P*T_s = {P * self.T_s}, v*P*g_sp = {v*P * g_sp}, E = {E}, I = {I}, C = {C}, R = {R}')
         R = self._reward_shift(R)
 
         state = (
@@ -268,6 +275,9 @@ class Environment:
             self._get_g_p(action, self.TimeSlot, 1),
             self._get_g_p(action, self.TimeSlot, 0)
         )
+
+        # print(f'g_sp_1 = {self._g_sp[1]}\ng_sp_2 = {self._g_sp[0]}')
+        # print(f'g_s = {self._g_s}')
         record = (v, k, mu, E, C, P)
         self._add_record(record)
         return state, (k, P), R, self.TimeSlot
