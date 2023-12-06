@@ -54,8 +54,9 @@ def P_and_C_and_E_ambient_generator(P_max = const_P_max , C_max = const_C_max , 
 #P_and_C_and_E_ambient_generator()
 #g_generator()
 
-data = np.loadtxt('P_p1.txt' , delimiter = ' ')
+data = np.loadtxt('E_ambient.txt' , delimiter = ' ')
 print(data)
+print(data.mean(0))
 
 plt.hist(data)
 plt.show()

@@ -40,18 +40,20 @@ optimizer = optim.SGD(policy_net.parameters(), lr = ALPHA)
 memory = ReplayMemory(10000)
 
 
-num_rewards = []
+sum_rewards = []
 max_rewards = []
 num_loss = []
 epsilon_values = []
 SU_rewards = []
-def select_action(state , t=0):
+def select_action(state ,episode = 501):
     global steps_done
     sample = random.random()
     eps_threshold = EPS_MIN + (EPS_MAX - EPS_MIN) * math.exp(-1. * EPS_DECAY * steps_done)
-    #eps_threshold = EPS_MIN + (EPS_MAX - EPS_MIN) * math.exp(-1. * EPS_DECAY * t)
     epsilon_values.append(eps_threshold)
-    steps_done += 1
+    steps_done += 1 * 0.5
+    if episode <= 500:
+        sample = EPS_MAX
+        steps_done = 0
 
     if sample > eps_threshold:
         with torch.no_grad():
@@ -59,38 +61,53 @@ def select_action(state , t=0):
     else :
         return torch.tensor([[env.action_sampling()]] , dtype=torch.long ,device = device)
 
-
+pre_means = []
+pre_rates = []
 def plot_rewards(show_result = False):
     #plt.figure(num=1,figsize=(1,3))
-    plt.figure(num =1 , figsize=(1,2))
-    rewards_t = torch.tensor(num_rewards , dtype=torch.float)
+    plt.figure(num =1 , figsize=(1,3))
+    rewards_t = torch.tensor(sum_rewards , dtype=torch.float)
     #loss_t = torch.tensor(num_loss , dtype=torch.float)
     #max_t = torch.tensor(max_rewards , dtype=torch.float)
-    #epsilon_t = torch.tensor(epsilon_values ,dtype=torch.float)
+    epsilon_t = torch.tensor(epsilon_values ,dtype=torch.float)
     SU_rewards_t = torch.tensor(SU_rewards , dtype=torch.float)
-    means = []
-    if len(num_rewards) >= 100:
-        means = rewards_t.unfold(0 , 100 , 1).mean(1).view(-1)
-        means = torch.cat((torch.zeros(99) , means))
+    # if len(sum_rewards) >= 100:
+    #     means = rewards_t.unfold(0 , 100 , 1).mean(1).view(-1)
+    #     means = torch.cat((torch.zeros(99) , means))
+    if len(sum_rewards) < 100:
+        x = torch.sum(rewards_t)
+        pre_means.append(x * 1. / len(sum_rewards))
+        x = torch.sum(SU_rewards_t)
+        pre_rates.append(x * 1. / len(SU_rewards))
+        rates_mean = torch.tensor(pre_rates , dtype=torch.float)
+        means = torch.tensor(pre_means , dtype=torch.float)
+    else :
+        means = rewards_t.unfold(0 ,  100, 1).mean(1).view(-1)
+        means = torch.cat(( torch.tensor(pre_means , dtype=torch.float) , means))
+
+        rates_mean = SU_rewards_t.unfold(0  ,100 , 1).mean(1).view(-1)
+        rates_mean = torch.cat((torch.tensor(pre_rates , dtype=torch.float) , rates_mean))
     if show_result:
         plt.title('Result')
     else:
         plt.clf()
         plt.title('Training...')
-        plt.subplot(121)
+        plt.subplot(131)
         plt.xlabel('Episode')
         plt.ylabel('Average Reward')
         plt.plot(rewards_t.numpy())
-        if len(num_rewards) >= 100:
-            plt.plot(means.numpy())
-        plt.subplot(122)
+        # if len(sum_rewards) >= 100:
+        #     plt.plot(means.numpy())
+        plt.plot(means.numpy())
+        plt.subplot(132)
         plt.xlabel('Episode')
         plt.ylabel('Average Rate')
         plt.plot(SU_rewards_t.numpy())
-        #plt.subplot(122)
-        #plt.xlabel('Time Slot')
-        #plt.ylabel('Epsilon value')
-        #plt.plot(epsilon_t.numpy())
+        plt.plot(rates_mean.numpy())
+        plt.subplot(133)
+        plt.xlabel('Time Slot')
+        plt.ylabel('Epsilon value')
+        plt.plot(epsilon_t.numpy())
         # plt.subplot(132)
         # plt.xlabel('Each optimize step')
         # plt.ylabel('loss value')
@@ -123,10 +140,12 @@ def optimize_model():
     next_state_values = torch.zeros(BATCH_SIZE , device = device)
     with torch.no_grad():
         next_state_values[non_final_mask] = target_net(non_final_next_states).max(1)[0]
+
     expected_state_action_values = (next_state_values * GAMMA) + reward_batch
 
     MSE = nn.MSELoss()
     loss = MSE(state_action_values, expected_state_action_values.unsqueeze(1))
+
     num_loss.append(loss.item())
 
     optimizer.zero_grad()
@@ -140,6 +159,7 @@ for i_episode in range(NUM_EPISODES):
     #     env.TimeSlot = -1
     state = env.reset()
     state = torch.tensor(state , dtype=torch.float32 , device=device).unsqueeze(0)
+    # state = torch.round(state , decimals=2)
     sum_reward = 0.
     max_r = 0.
     sum_rate = 0.
@@ -158,9 +178,9 @@ for i_episode in range(NUM_EPISODES):
         sum_rate += reward_item if reward_item >= 0 else 0
         max_r = max(max_r , reward)
 
-        state = torch.round(state , decimals=2)
-        if next_state != None:
-            next_state = torch.round(next_state , decimals=2)
+        # state = torch.round(state , decimals=2)
+        # if next_state != None:
+        #     next_state = torch.round(next_state , decimals=2)
 
         #print('state ' , state)
         #print('next state ' , next_state)
@@ -179,9 +199,9 @@ for i_episode in range(NUM_EPISODES):
             target_net.load_state_dict(policy_net.state_dict())
 
         if done:
-            num_rewards.append(sum_reward / NUM_STEP)
+            sum_rewards.append(sum_reward)
             max_rewards.append(max_r)
-            SU_rewards.append(sum_rate / NUM_STEP)
+            SU_rewards.append(sum_rate)
             plot_rewards()
             break
 

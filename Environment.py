@@ -7,7 +7,7 @@ class Environment:
                , E_max = 0.2 ,\
                Phi = 1 , Rho = 0.4 , A = 10):
     #self.actions_space = [(0 , s * 0.05) for s in range(1 , 11 , 1)] + [(1,s * 0.05) for s in range(1 , 11 , 1)]
-    self.actions_space = [(0, s * 0.025) for s in range(1, 25, 1)] + [(1, s * 0.025) for s in range(1, 25, 1)]
+    self.actions_space = [(0, s * 0.01) for s in range(1, 53, 1)] + [(1, s * 0.01) for s in range(1, 53, 1)]
     self.P_max = P_max
     self.Xi = Xi
     self.Lambda = Lambda
@@ -98,10 +98,12 @@ class Environment:
 
     #tinh phan thuong tu hanh dong
     P_p1 = self.arr_P_p1[self.TimeSlot]
-    P_dbW = 10 * math.log10(P)
-    P_p1_dbW = 10 * math.log10(P_p1)
-    R_1 = self.Mu * self.T_s * np.log2(1 + P_dbW * self.g_s / (self.N_0 + P_p1_dbW * self.g_p1r)) if v == 1 else 0
-    R_2 = self.Mu * self.T_s * np.log2(1 + P_dbW * self.g_s / self.N_0) if v == 0 else 0
+    P_dbw = 10 * math.log10(P) + 30
+    P_p1_dbw = 10 * math.log10(P_p1) + 30
+    P_10 = 10 ** (P_dbw / 10)
+    P_p1_10 = 10 ** (P_p1_dbw / 10)
+    R_1 = self.Mu * self.T_s * np.log2(1 + P_10 * self.g_s / (self.N_0 + P_p1_10 * self.g_p1r)) if v == 1 else 0
+    R_2 = self.Mu * self.T_s * np.log2(1 + P_10 * self.g_s / self.N_0) if v == 0 else 0
     if (k == 0 and v == 1 and P * self.T_s <= self.C and P * self.g_sp1 <= self.I):
       Reward = R_1
     elif (k == 0 and v == 0 and P * self.T_s <= self.C and P * self.g_sp2 <= self.I):
