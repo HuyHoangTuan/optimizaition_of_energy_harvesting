@@ -19,10 +19,12 @@ is_ipython = 'inline' in matplotlib.get_backend()
 if is_ipython:
     from IPython import display
 
+EPISODE = 1400 if torch.cuda.is_available() else 300
 class Train:
     def __init__(
             self,
-            env = Environment(),
+            num_episode = EPISODE,
+            env = Environment(Episode = EPISODE),
             batch_size = 256,
             gamma = 0.99,
             eps_max = 1,
@@ -40,6 +42,7 @@ class Train:
         self.eps_decay = eps_decay
         self.tau = tau
         self.learning_rate = learning_rate
+        self.num_episode = num_episode
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self._init_evn()
@@ -74,6 +77,8 @@ class Train:
         # self.steps_done += 1
         if sample > eps_threshold:
             with torch.no_grad():
+                # output = self.policy_net(state)
+                # print(output.max(1))
                 action = self.policy_net(state).max(1)[1].view(1, 1)
                 # noise = torch.tensor([[RandomUtils.normal(0, 0.1)]], device = self.device, dtype = torch.long)
                 # action = action + noise
@@ -167,15 +172,11 @@ class Train:
 
     def start_train(self):
         LogUtils.info('TRAIN', f'CUDA: {torch.cuda.is_available()}')
-        if torch.cuda.is_available():
-            num_episodes = 1500
-        else:
-            num_episodes = 300
         best_reward = -1000
         sum_reward_episode = 0
         scheduler = optim.lr_scheduler.ExponentialLR(self.optimizer, gamma = 0.99)
 
-        for i_episode in range(num_episodes):
+        for i_episode in range(self.num_episode):
             state, info = self.env.reset()
             state = torch.tensor(state, dtype = torch.float32, device = self.device).unsqueeze(0)
             # LogUtils.info('TRAIN', f'episode: {i_episode}, state: {state}')
@@ -185,12 +186,10 @@ class Train:
             for t in count():
                 num_step += 1
                 action = self.select_action(state, time_slot)
-                observation, _action, reward, time_slot = self.env.step(action.item())
+                observation, _action, reward, time_slot = self.env.step(action.item(), i_episode)
                 # LogUtils.info('TRAIN', f'observation: {observation}\naction: {action}\nreward: {reward}\ntime_slot: {time_slot}')
-                reward = torch.tensor([reward], device = self.device)
-
-                reward_item = reward.squeeze(0).item()
-                sum_reward += reward_item
+                reward = torch.tensor([reward], dtype = torch.float32, device = self.device)
+                sum_reward += reward.squeeze(0).item()
 
                 done = True if time_slot >= self.env.N else False
 
@@ -212,19 +211,18 @@ class Train:
                     self.target_net.load_state_dict(target_net_state_dict)
 
                 if done:
-                    LogUtils.info('TRAIN', f'({i_episode + 1}/{num_episodes}) reward: {sum_reward}')
+                    LogUtils.info('TRAIN', f'({i_episode + 1}/{self.num_episode}) reward: {sum_reward}')
                     break
 
-            sum_reward_episode += sum_reward
+            sum_reward_episode += sum_reward/num_step
             self.rewards.append(sum_reward)
 
-            avg_reward = sum_reward_episode / (i_episode + 1)
-            if best_reward < avg_reward:
-                best_reward = avg_reward
-                torch.save(self.policy_net.state_dict(), 'res/check_point/policy_model.pth')
+            if best_reward < sum_reward_episode:
+                best_reward = sum_reward_episode
+                # torch.save(self.policy_net.state_dict(), 'res/check_point/policy_model.pth')
                 LogUtils.info('TRAIN', f'SAVE MODEL: best_reward: {best_reward}')
 
-            self.SU_rewards.append(avg_reward)
+            self.SU_rewards.append(sum_reward_episode / (i_episode + 1))
             self.plot_rewards()
 
             scheduler.step()
