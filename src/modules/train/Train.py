@@ -6,6 +6,7 @@ import torch.nn.functional as F
 import matplotlib
 import matplotlib.pyplot as plt
 from itertools import count
+from os.path import exists
 
 from utils import LogUtils, RandomUtils
 
@@ -52,6 +53,10 @@ class Train:
 
         self.policy_net = DQNModel(n_observations, n_actions).to(self.device)
         self.target_net = DQNModel(n_observations, n_actions).to(self.device)
+
+        if exists('res/check_point/policy_model.pth'):
+            self.policy_net.load_state_dict(torch.load('res/check_point/policy_model.pth'))
+
         self.target_net.load_state_dict(self.policy_net.state_dict())
 
         self.optimizer = optim.SGD(self.policy_net.parameters(), lr = self.learning_rate)
@@ -200,14 +205,11 @@ class Train:
 
                 self.optimize_model()
 
-                target_net_state_dict = self.target_net.state_dict()
-                policy_net_state_dict = self.policy_net.state_dict()
+                if t % 5 == 4:
+                    target_net_state_dict = self.target_net.state_dict()
+                    policy_net_state_dict = self.policy_net.state_dict()
 
-                for key in policy_net_state_dict:
-                    target_net_state_dict[key] = policy_net_state_dict[key] * self.tau + target_net_state_dict[key] * (
-                                1 - self.tau)
-
-                self.target_net.load_state_dict(target_net_state_dict)
+                    self.target_net.load_state_dict(target_net_state_dict)
 
                 if done:
                     LogUtils.info('TRAIN', f'({i_episode + 1}/{num_episodes}) reward: {sum_reward}')
