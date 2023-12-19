@@ -15,6 +15,7 @@ def g_generator(Xi = const_Xi):
   g_s = rng.exponential(1 / Xi , N * Episodes)
   g_p1r = rng.exponential(1 / Xi , N * Episodes)
   g_p1s = rng.exponential(1 / Xi , N * Episodes)
+  g_p2r = rng.exponential(1 / Xi , N * Episodes)
   g_p2s = rng.exponential(1 / Xi , N * Episodes)
   g_sp1 = rng.exponential(1 / Xi , N * Episodes)
   g_sp2 = rng.exponential(1 / Xi , N * Episodes)
@@ -24,6 +25,7 @@ def g_generator(Xi = const_Xi):
   np.savetxt('g_s.txt' , g_s ,delimiter = ' ')
   np.savetxt('g_p1r.txt' , g_p1r ,delimiter = ' ')
   np.savetxt('g_p1s.txt' , g_p1s ,delimiter = ' ')
+  np.savetxt('g_p2r.txt', g_p2r, delimiter=' ')
   np.savetxt('g_p2s.txt' , g_p2s ,delimiter = ' ')
   np.savetxt('g_sp1.txt' , g_sp1 ,delimiter = ' ')
   np.savetxt('g_sp2.txt' , g_sp2 ,delimiter = ' ')
@@ -51,12 +53,12 @@ def P_and_C_and_E_ambient_generator(P_max = const_P_max , C_max = const_C_max , 
 
 
 #-------------------------------
-#P_and_C_and_E_ambient_generator()
-#g_generator()
+P_and_C_and_E_ambient_generator()
+g_generator()
 
-data = np.loadtxt('E_ambient.txt' , delimiter = ' ')
-print(data)
-print(data.mean(0))
-
-plt.hist(data)
-plt.show()
+# data = np.loadtxt('E_ambient.txt' , delimiter = ' ')
+# print(data)
+# print(data.mean(0))
+#
+# plt.hist(data)
+# plt.show()

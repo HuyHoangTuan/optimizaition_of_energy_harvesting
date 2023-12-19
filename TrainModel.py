@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 from itertools import count
 from os.path import exists
-
+import numpy as np
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 NUM_EPISODES = 1400
@@ -40,11 +40,15 @@ optimizer = optim.SGD(policy_net.parameters(), lr = ALPHA)
 memory = ReplayMemory(10000)
 
 
-sum_rewards = []
+sum_rewards = [] #reward
 max_rewards = []
 num_loss = []
 epsilon_values = []
-SU_rewards = []
+SU_rates = []
+Rho_action = []
+P_action = []
+Foul_action = []
+Foul_hist = []
 def select_action(state ,episode = 501):
     global steps_done
     sample = random.random()
@@ -65,49 +69,69 @@ pre_means = []
 pre_rates = []
 def plot_rewards(show_result = False):
     #plt.figure(num=1,figsize=(1,3))
-    plt.figure(num =1 , figsize=(1,3))
+    plt.figure(num=1)
+
     rewards_t = torch.tensor(sum_rewards , dtype=torch.float)
     #loss_t = torch.tensor(num_loss , dtype=torch.float)
     #max_t = torch.tensor(max_rewards , dtype=torch.float)
     epsilon_t = torch.tensor(epsilon_values ,dtype=torch.float)
-    SU_rewards_t = torch.tensor(SU_rewards , dtype=torch.float)
+    SU_rates_t = torch.tensor(SU_rates , dtype=torch.float)
+    P_action_t = torch.tensor(P_action , dtype = torch.float)
+    Rho_action_t = torch.tensor(Rho_action , dtype=torch.float)
+    #Foul_action_t = torch.tensor(Foul_action , dtype=torch.int)
+
     # if len(sum_rewards) >= 100:
     #     means = rewards_t.unfold(0 , 100 , 1).mean(1).view(-1)
     #     means = torch.cat((torch.zeros(99) , means))
     if len(sum_rewards) < 100:
         x = torch.sum(rewards_t)
         pre_means.append(x * 1. / len(sum_rewards))
-        x = torch.sum(SU_rewards_t)
-        pre_rates.append(x * 1. / len(SU_rewards))
+        x = torch.sum(SU_rates_t)
+        pre_rates.append(x * 1. / len(SU_rates))
         rates_mean = torch.tensor(pre_rates , dtype=torch.float)
         means = torch.tensor(pre_means , dtype=torch.float)
+
+
     else :
         means = rewards_t.unfold(0 ,  100, 1).mean(1).view(-1)
         means = torch.cat(( torch.tensor(pre_means , dtype=torch.float) , means))
 
-        rates_mean = SU_rewards_t.unfold(0  ,100 , 1).mean(1).view(-1)
+        rates_mean = SU_rates_t.unfold(0  ,100 , 1).mean(1).view(-1)
         rates_mean = torch.cat((torch.tensor(pre_rates , dtype=torch.float) , rates_mean))
+
+
     if show_result:
-        plt.title('Result')
+        plt.suptitle('Result')
     else:
         plt.clf()
-        plt.title('Training...')
-        plt.subplot(131)
+        plt.suptitle('Training...')
+        plt.subplot(231)
         plt.xlabel('Episode')
         plt.ylabel('Average Reward')
         plt.plot(rewards_t.numpy())
         # if len(sum_rewards) >= 100:
         #     plt.plot(means.numpy())
         plt.plot(means.numpy())
-        plt.subplot(132)
+        plt.subplot(232)
         plt.xlabel('Episode')
         plt.ylabel('Average Rate')
-        plt.plot(SU_rewards_t.numpy())
+        plt.plot(SU_rates_t.numpy())
         plt.plot(rates_mean.numpy())
-        plt.subplot(133)
+        plt.subplot(233)
         plt.xlabel('Time Slot')
         plt.ylabel('Epsilon value')
         plt.plot(epsilon_t.numpy())
+        plt.subplot(234)
+        plt.xlabel('P value')
+        plt.hist(P_action_t.numpy() , bins=10)
+        plt.subplot(235)
+        plt.xlabel('Rho value')
+        plt.hist(Rho_action_t.numpy() , bins=11)
+        #plt.subplot(236)
+        #plt.title('Foul statistics')
+        #plt.hist(Foul_action_t.numpy(),bins=4)
+        #plt.tight_layout()
+
         # plt.subplot(132)
         # plt.xlabel('Each optimize step')
         # plt.ylabel('loss value')
@@ -153,19 +177,69 @@ def optimize_model():
     torch.nn.utils.clip_grad_value_(policy_net.parameters(), 100)
     optimizer.step()
 
-
+Foul_per_episode = []
 for i_episode in range(NUM_EPISODES):
     # if(i_episode == 1400):
     #     env.TimeSlot = -1
     state = env.reset()
-    state = torch.tensor(state , dtype=torch.float32 , device=device).unsqueeze(0)
+
     # state = torch.round(state , decimals=2)
     sum_reward = 0.
     max_r = 0.
     sum_rate = 0.
+    Foul_per_episode_cnt = 0
+
+    g_s = 10.
+    g_p1r = 10.
+    g_p2r = 10.
+    g_p1s = 10.
+    g_p2s = 10.
+    g_sp1 = 10.
+    g_sp2 = 10.
+
+
+
+    # (E_prev ,C , *g) = state
+    # g = np.array([g_s , g_sp1 , g_sp2 , g_p1s , g_p2s , g_p1r , g_p2r])
+    # state = (E_prev , C , *g)
+
+    #(E_prev , C , P1 , P2) = state
+
+    (E_prev ,C , P1 , P2 , *g) = state
+    g = np.array([g_s , g_sp1 , g_sp2 , g_p1s , g_p2s , g_p1r , g_p2r])
+    state = (E_prev , C ,P1 , P2 ,*g)
+
+    state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
     for t in count():
         action = select_action(state , i_episode)
         observation , reward , done = env.step(action.item())
+
+        k , Rho , P = env.map_action(action.item())
+        Rho_action.append(Rho)
+        P_action.append(P)
+
+        # (E_prev , C , *g_prev , Foul) = observation
+        # Foul_action = Foul_action + Foul
+        # g_prev = np.array(g_prev)
+        # g = g + g_prev
+        # if(t == 0):
+        #     g = g_prev
+        # observation = (E_prev , C , *(g / (t + 1)))
+
+        #---- tach Foul , chinh lai state---
+        # (E_prev , C , P1 , P2 ,Foul) = observation
+        # Foul_action = Foul_action + Foul
+        # observation = (E_prev , C , P1 , P2)
+
+        (E_prev , C , P1 , P2 , *g_prev , Foul , Foul_cnt) = observation
+        Foul_action = Foul_action + Foul
+        Foul_per_episode_cnt += Foul_cnt
+        g_prev = np.array(g_prev)
+        g = g + g_prev
+        if(t == 0):
+            g = g_prev
+        observation = (E_prev , C , P1 , P2 , *(g / (t + 1)))
+
         reward = torch.tensor([reward] , device = device, dtype=torch.float32)
         if done:
             next_state = None
@@ -201,11 +275,23 @@ for i_episode in range(NUM_EPISODES):
         if done:
             sum_rewards.append(sum_reward)
             max_rewards.append(max_r)
-            SU_rewards.append(sum_rate)
-            plot_rewards()
+            SU_rates.append(sum_rate)
+            counts , bins = np.histogram(Foul_action , bins=[0,1,2,3,4])
+            Foul_hist.append(counts)
+            Foul_per_episode.append(Foul_per_episode_cnt)
+
+            #plot_rewards()
+            print('episode : ' , i_episode)
             break
 
 torch.save(target_net.state_dict() , 'net.pth')
 print('Complete')
 plot_rewards(show_result=True)
 plt.show()
+np.savetxt('rate_values.txt' , np.array(SU_rates) , delimiter= ' ')
+np.savetxt('reward_values.txt' , np.array(sum_rewards) , delimiter=' ')
+np.savetxt('Foul_hist_values.txt' , np.array(Foul_hist , dtype=int) , delimiter=' ')
+np.savetxt('epsilon_values.txt' ,np.array(epsilon_values) , delimiter= ' ')
+np.savetxt('Rho_values.txt', np.array(Rho_action) , delimiter= ' ')
+np.savetxt('P_values.txt' , np.array(P_action) , delimiter = ' ')
+np.savetxt('Foul_per_episode_values.txt' , np.array(Foul_per_episode) ,delimiter = ' ')
