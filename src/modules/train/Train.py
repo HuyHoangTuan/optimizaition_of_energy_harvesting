@@ -19,7 +19,7 @@ is_ipython = 'inline' in matplotlib.get_backend()
 if is_ipython:
     from IPython import display
 
-EPISODE = 1400 if torch.cuda.is_available() else 300
+EPISODE = 1400 if torch.cuda.is_available() else 1400
 class Train:
     def __init__(
             self,
