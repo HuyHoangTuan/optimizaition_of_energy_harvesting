@@ -2,30 +2,31 @@ import math
 
 import numpy as np
 from utils import LogUtils, RandomUtils
+
 class Environment:
     def __init__(
             self,
-            NumPU=2,
-            P_max=1,
+            NumPU = 2,
+            P_max = 1,
             Xi_s = 0.1,
             Xi_pr = [0.1, 0.1],
             Xi_ps = [0.1, 0.1],
             Xi_p = [0.1, 0.1],
             Xi_sp = [0.1, 0.1],
-            I=0.5,
-            Lambda=0.1,
-            N=20,
-            Gamma=0.99,
-            Alpha=0.003,
-            Eta=0.9,
-            T_s=1,
-            N_0=1,
-            E_max=0.2,
-            Phi=1,
-            Rho=0.4,
-            A=10,
-            C_max=0.5,
-            Episode=1400,
+            I = [0.5, 0.5],
+            Lambda = 0.1,
+            N = 20,
+            Gamma = 0.99,
+            Alpha = 0.003,
+            Eta = 0.9,
+            T_s = 1,
+            N_0 = 1,
+            E_max = 0.2,
+            Phi = 1,
+            Rho = 0.4,
+            A = 10,
+            C_max = 0.5,
+            Episode = 1400,
 
     ):
         # SU-Tx ~ Agent
@@ -70,7 +71,7 @@ class Environment:
         for i in range(self.Episode):
             self.g_pr.append([])
             for j in range(NumPU):
-                self.g_pr[i].append(RandomUtils.exponential(1.0 / Xi_s, self.N))
+                self.g_pr[i].append(RandomUtils.exponential(1.0 / Xi_pr[j], self.N))
 
         # g_sp: [ [Episode][PU][Time_Slot] ]
         # The channel power gain between SU-TX and PU-RX
@@ -78,7 +79,7 @@ class Environment:
         for i in range(self.Episode):
             self.g_sp.append([])
             for j in range(NumPU):
-                self.g_sp[i].append(RandomUtils.exponential(1.0 / Xi_s, self.N))
+                self.g_sp[i].append(RandomUtils.exponential(1.0 / Xi_sp[j], self.N))
 
         # g_ps: [ [Episode][PU][Time_slot] ]
         # The channel power gain between PU and SU-TX
@@ -86,7 +87,7 @@ class Environment:
         for i in range(self.Episode):
             self.g_ps.append([])
             for j in range(NumPU):
-                self.g_ps[i].append(RandomUtils.exponential(1.0 / Xi_s, self.N))
+                self.g_ps[i].append(RandomUtils.exponential(1.0 / Xi_ps[j], self.N))
 
         # P_P: [ [Episode][PU][Time_Slot] ]
         self._P_p = []
@@ -102,17 +103,19 @@ class Environment:
 
         # action spaces
         k = [0]
-        delta_P = 1.0/32.0
+        delta_P = 1.0 / 32.0
         P = [i * delta_P for i in range(1, int(0.5 / delta_P) * 2 + 1)]
-        delta_Rho = 1.0/8.0
+        delta_Rho = 1.0 / 8.0
         Rho = [i * delta_Rho for i in range(0, int(1.0 / delta_Rho))]
         actions_space = np.array(np.meshgrid(k, P, Rho)).T.reshape(-1, 3)
         actions_space = np.append(actions_space, np.array([[1, 1.0, 0]]), axis = 0)
         self.actions_space = [tuple(x) for x in actions_space]
         RandomUtils.shuffle(self.actions_space)
         LogUtils.info('ENV', f'ACTIONS_SPACE: {self.get_num_actions()}')
-        # state: (E, C, p_p, g_s, g_sp, g_pr, g_ps)
+
+        # state: (v, E, C, p_p, g_s, g_sp, g_pr, g_ps)
         self._Default_State = (
+            0,
             0,
             0,
             *tuple([0 for i in range(NumPU)]),
@@ -144,6 +147,12 @@ class Environment:
         _, P, _ = self.actions_space[action]
         return P
 
+    def _get_v(self, Time_Slot):
+        if Time_Slot <= self.A:
+            return 1  # PU_1
+        else:
+            return 0  # PU_2
+
     def _calc_Interference(self, P_p, g_pr, Rho):
         Interference = 0
         for i in range(self.NumPU):
@@ -168,6 +177,7 @@ class Environment:
                 return False
 
         return True
+
     def _get_record(self, time_slot):
         # record: (k, mu, E, C, P)
 
@@ -178,6 +188,11 @@ class Environment:
 
     def _add_record(self, record):
         self.records.append(record)
+
+    def _convert_2_dbW(self, PW):
+        P_dbw = 10 * math.log(PW * 1000, 10)
+        P_dbw = 10 ** (P_dbw / 10)
+        return P_dbw
 
     def reset(self):
         self.records = []
@@ -191,12 +206,13 @@ class Environment:
         prev_k, prev_mu, prev_E, prev_C, prev_P, prev_G_s = self._get_record(self._Time_Slot)
 
         self._Time_Slot += 1
-
+        v = self._get_v(self._Time_Slot)
         k = self._get_k(action)
         P = self._get_P(action)
         Rho = self._get_Rho(action)
-        # print(f'k = {k}, P = {P}, Rho = {Rho}')
         mu = 1 - Rho
+
+        G_s = self.g_s[episode][self._Time_Slot - 1]
         P_p = (np.array(self._P_p[episode])[:, self._Time_Slot - 1]).tolist()
         G_pr = (np.array(self.g_pr[episode])[:, self._Time_Slot - 1]).tolist()
         G_sp = (np.array(self.g_sp[episode])[:, self._Time_Slot - 1]).tolist()
@@ -207,27 +223,31 @@ class Environment:
         E = E_TS + E_ambient
 
         C = min(prev_C + prev_E - (1.0 - prev_k) * prev_mu * prev_P * self.T_s, self.C_max)
-        Interference = self._calc_Interference(P_p, G_pr, Rho)
-        g_s = (prev_G_s * (self._Time_Slot - 1) + self.g_s[episode][self._Time_Slot - 1]) / self._Time_Slot
 
-        R = None
-        if k == 0 and mu * P * self.T_s <= C and self._Is_Interference(P, G_sp):
-            P_dbw = 10 * math.log(P * 1000, 10)
-            P_dbw = 10 ** (P_dbw / 10)
-            inside_log = 1 + P_dbw * g_s / (self.N_0 + Interference)
-            R = mu * self.T_s * math.log(inside_log,2)
+        P_dbw = self._convert_2_dbW(P)
+        P_p_dbw = self._convert_2_dbW(P_p[v])
+
+        R_type = 0
+        R = -self.Phi
+        if k == 0 and mu * P * self.T_s <= C:
+            if P * G_sp[v] <= self.I[v]:
+                if v == 1:
+                    R_type = 1
+                    R = mu * self.T_s * math.log2(1 + (P_dbw * G_s) / (self.N_0 + P_p_dbw * G_pr[v]))
+                else:
+                    R_type = 1
+                    R = mu * self.T_s * math.log2(1 + (P_dbw * G_s) / self.N_0)
         else:
-            if k == 1:
+            if k == 1 and mu * P * self.T_s > C:
+                R_type = 2
                 R = 0
 
-        if R is None:
-            R = -self.Phi
-
         state = (
+            v,
             prev_E,
             C,
             *tuple(P_p),
-            g_s,
+            G_s,
             *tuple(G_sp),
             *tuple(G_pr),
             *tuple(G_ps)
@@ -239,10 +259,15 @@ class Environment:
             Rho
         )
 
+        reward = (
+            R,
+            R_type
+        )
+
         # print(f'k = {k}, mu = {mu}, E = {E}, C = {C}, P = {P}, g_s = {g_s}')
-        record = (k, mu, E, C, P, g_s)
+        record = (k, mu, E, C, P, G_s)
         self._add_record(record)
-        return state, action, R, self._Time_Slot
+        return state, action, reward, self._Time_Slot
 
     def get_num_states(self):
         return len(self._Default_State)
