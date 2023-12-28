@@ -1,4 +1,6 @@
 import math
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -18,7 +20,7 @@ is_ipython = 'inline' in matplotlib.get_backend()
 if is_ipython:
     from IPython import display
 
-EPISODE = 1400 if torch.cuda.is_available() else 1400
+EPISODE = 2000 if torch.cuda.is_available() else 2000
 
 class Train:
     def __init__(
@@ -48,7 +50,6 @@ class Train:
         self._init_evn()
 
     def _init_evn(self):
-        state, info = self.env.reset()
 
         n_actions = self.env.get_num_actions()
         n_observations = self.env.get_num_states()
@@ -57,36 +58,43 @@ class Train:
         self.policy_net = DQNModel(n_observations, n_actions).to(self.device)
         self.target_net = DQNModel(n_observations, n_actions).to(self.device)
 
-        if exists('res/check_point/policy_model.pth'):
-            self.policy_net.load_state_dict(torch.load('res/check_point/policy_model.pth'))
+        if exists('res/check_point/target_model.pth'):
+            self.policy_net.load_state_dict(torch.load('res/check_point/target_model.pth'))
 
         self.target_net.load_state_dict(self.policy_net.state_dict())
 
         self.optimizer = optim.SGD(self.policy_net.parameters(), lr = self.learning_rate)
-        self.memory = ReplayMemory(50000)
+        self.memory = ReplayMemory(10000)
 
         # self.steps_done = 0
         # visualization
+        self.num_to_get_mean = 100
         self.rewards = []
         self.SU_rewards = []
         self.R_0_types = []
         self.R_1_types = []
         self.R_2_types = []
+        self.eps = []
+        self.eps_e = []
+        self.rhos = []
+        self.mean_rhos = []
+        self.sample = []
+
+        # plt
+        self.SU_rewards_t = []
+        self.mean_rhos_t = []
 
     def select_action(self, state, time_slot = 0):
         sample = RandomUtils.custom_random()
         eps_threshold = self.eps_min + (self.eps_max - self.eps_min) * math.exp(
             -1. * time_slot * self.eps_decay
         )
+        self.eps.append(eps_threshold)
+        self.sample.append(sample)
         # self.steps_done += 1
         if sample > eps_threshold:
             with torch.no_grad():
-                # output = self.policy_net(state)
-                # print(output.max(1))
                 action = self.policy_net(state).max(1)[1].view(1, 1)
-                # noise = torch.tensor([[RandomUtils.normal(0, 0.1)]], device = self.device, dtype = torch.long)
-                # action = action + noise
-                # action = torch.clamp(action, 0, len(self.env.actions_space) - 1)
                 return action
         else:
             return torch.tensor(
@@ -97,56 +105,103 @@ class Train:
     def plot_rewards(self, show_result = False):
 
         plt.figure(num = 1, figsize = (16, 9), dpi = 120)
-        num_to_get_mean = 100
 
         if show_result is False:
+            self.SU_rewards_t.append(torch.mean(torch.tensor(self.SU_rewards, dtype = torch.float)))
+            self.mean_rhos_t.append(torch.mean(torch.tensor(self.mean_rhos, dtype = torch.float)))
             plt.clf()
 
         # Plot reward
         # ---------------------------------------------------------------------
-        plt.subplot(2, 2, 1)
+        plt.subplot(3, 2, 1)
 
         plt.title('Rewards')
+        plt.ylabel('Reward')
 
         rewards_t = torch.tensor(self.rewards, dtype = torch.float)
-        plt.xlabel('Episode')
-        plt.ylabel('Reward')
         plt.plot(rewards_t.numpy())
 
-        # ---------------------------------------------------------------------
-
-        # Plot average SU reward
-        # ---------------------------------------------------------------------
-        plt.subplot(2, 2, 2)
-
-        plt.title('Average SU Rewards')
-
-        SU_rewards_t = torch.tensor(self.SU_rewards, dtype = torch.float)
-        plt.xlabel('Episode')
-        plt.ylabel('Average SU Reward (bits/s/Hz)')
+        SU_rewards_t = torch.tensor(self.SU_rewards_t, dtype = torch.float)
         plt.plot(SU_rewards_t.numpy())
 
         # ---------------------------------------------------------------------
 
-        # Plot reward_type
+        # Plot EPS
         # ---------------------------------------------------------------------
-        plt.subplot(2, 2, 3)
+        plt.subplot(3, 2, 2)
+        #
+        plt.title('Epsilon')
+        plt.ylabel('Epsilon value')
 
-        plt.title('Reward Type')
-        plt.xlabel('Episode')
-        plt.ylabel('Total')
-
-        R_0_types_t = torch.tensor(self.R_0_types, dtype = torch.float)
-        R_1_types_t = torch.tensor(self.R_1_types, dtype = torch.float)
-        R_2_types_t = torch.tensor(self.R_2_types, dtype = torch.float)
-
-        plt.plot(R_0_types_t.numpy(), label = 'R_0')
-        plt.plot(R_1_types_t.numpy(), label = 'R_1')
-        plt.plot(R_2_types_t.numpy(), label = 'R_2')
+        eps_t = torch.tensor(self.eps_e, dtype = torch.float)
+        plt.plot(eps_t.numpy())
 
         # ---------------------------------------------------------------------
 
-        plt.pause(0.001)  # pause a bit so that plots are updated
+        # Plot rho
+        # ---------------------------------------------------------------------
+        plt.subplot(3, 2, 3)
+
+        plt.title('Rho')
+        plt.ylabel('Rho value')
+
+        rhos_t = torch.tensor(self.rhos, dtype = torch.float)
+        plt.plot(rhos_t.numpy())
+
+        mean_rhos_t = torch.tensor(self.mean_rhos_t, dtype = torch.float)
+        plt.plot(mean_rhos_t.numpy())
+
+        # ---------------------------------------------------------------------
+
+        # Plot Reward Type PU1
+        # ---------------------------------------------------------------------
+        plt.subplot(3, 2, 5)
+
+        if show_result is False:
+            plt.title('PU1 Reward Type')
+            # plt.ylim(0, self.env.N)
+        else:
+            plt.title('PU1 Reward Type (Sum)')
+        plt.ylabel('Number')
+
+        categories = ['0', '1', '2']
+
+        PU1_R_O_types = np.array(self.R_0_types)[:, 1]
+        PU1_R_1_types = np.array(self.R_1_types)[:, 1]
+        PU1_R_2_types = np.array(self.R_2_types)[:, 1]
+        if show_result is False:
+            PU1_R_types = np.array([PU1_R_O_types[-1], PU1_R_1_types[-1], PU1_R_2_types[-1]])
+        else:
+            PU1_R_types = np.array([PU1_R_O_types.sum(), PU1_R_1_types.sum(), PU1_R_2_types.sum()])
+
+        plt.bar(categories, PU1_R_types)
+        # ---------------------------------------------------------------------
+
+        # Plot Reward Type PU2
+        # ---------------------------------------------------------------------
+        plt.subplot(3, 2, 6)
+
+        if show_result is False:
+            plt.title('PU2 Reward Type')
+            # plt.ylim(0, self.env.N)
+        else:
+            plt.title('PU2 Reward Type (Sum)')
+        plt.ylabel('Number')
+
+        categories = ['0', '1', '2']
+
+        PU2_R_O_types = np.array(self.R_0_types)[:, 0]
+        PU2_R_1_types = np.array(self.R_1_types)[:, 0]
+        PU2_R_2_types = np.array(self.R_2_types)[:, 0]
+        if show_result is False:
+            PU2_R_types = np.array([PU2_R_O_types[-1], PU2_R_1_types[-1], PU2_R_2_types[-1]])
+        else:
+            PU2_R_types = np.array([PU2_R_O_types.sum(), PU2_R_1_types.sum(), PU2_R_2_types.sum()])
+
+        plt.bar(categories, PU2_R_types)
+        # ---------------------------------------------------------------------
+
+        plt.pause(1/320)  # pause a bit so that plots are updated
         # ---------------------------------------------------------------------
 
         if is_ipython:
@@ -207,17 +262,18 @@ class Train:
             sum_reward = 0
             sum_Rho = 0
 
-            r_0_type = 0
-            r_1_type = 0
-            r_2_type = 0
+            r_0_type = [0, 0]
+            r_1_type = [0, 0]
+            r_2_type = [0, 0]
             for t in count():
                 action = self.select_action(state, i_episode)
                 observation, (_, _, Rho), (reward, reward_type), time_slot = self.env.step(action.item(), i_episode)
                 reward = torch.tensor([reward], dtype = torch.float32, device = self.device)
 
-                r_0_type += 1 if reward_type == 0 else 0
-                r_1_type += 1 if reward_type == 1 else 0
-                r_2_type += 1 if reward_type == 2 else 0
+                v = observation[0]
+                r_0_type[v] += 1 if reward_type == 0 else 0
+                r_1_type[v] += 1 if reward_type == 1 else 0
+                r_2_type[v] += 1 if reward_type == 2 else 0
 
                 sum_reward += reward.squeeze(0).item()
                 sum_Rho += Rho
@@ -235,35 +291,58 @@ class Train:
 
                 self.optimize_model()
 
-                # if t % 5 == 4:
-                    # policy_net_state_dict = self.policy_net.state_dict()
-                    # self.target_net.load_state_dict(policy_net_state_dict)
+                if t % 5 == 4:
+                    self.target_net.load_state_dict(self.policy_net.state_dict())
 
+                LogUtils.info(
+                    'TRAIN',
+                    f'({i_episode + 1}): '
+                    f'action: {action.squeeze(0).item()}, '
+                    f'observation: {observation}, '
+                    f'rho: {Rho}, '
+                    f'reward: {reward.squeeze(0).item()} - {reward_type}, '
+                    f'eps: {self.eps[-1]}, '
+                    f'sample: {self.sample[-1]}, '
+                )
                 if done:
                     break
 
             LogUtils.info(
                 'TRAIN',
-                f'({i_episode + 1}/{self.num_episode}) '
+                f'({i_episode + 1}/{self.num_episode}): '
                 f'reward: {sum_reward}, '
                 f'rho: {sum_Rho / self.env.N}'
+
             )
 
             sum_reward_episode += sum_reward / self.env.N
             if best_reward < sum_reward_episode:
                 best_reward = sum_reward_episode
-                torch.save(self.target_net.state_dict(), 'res/check_point/policy_model.pth')
+                # torch.save(self.target_net.state_dict(), 'res/check_point/policy_model.pth')
 
-                policy_net_state_dict = self.policy_net.state_dict()
-                self.target_net.load_state_dict(policy_net_state_dict)
+                # policy_net_state_dict = self.policy_net.state_dict()
+                # self.target_net.load_state_dict(policy_net_state_dict)
 
                 LogUtils.info('TRAIN', f'SAVE MODEL: best_reward: {best_reward / (i_episode + 1)}')
 
+            self.rhos.append(sum_Rho / self.env.N)
+
             self.rewards.append(sum_reward / self.env.N)
-            self.SU_rewards.append(sum_reward_episode / (i_episode + 1))
-            self.R_0_types.append(r_0_type / self.env.N)
-            self.R_1_types.append(r_1_type / self.env.N)
-            self.R_2_types.append(r_2_type / self.env.N)
+
+            self.eps_e.append(torch.mean(torch.tensor(self.eps, dtype = torch.float)))
+            self.eps = []
+
+            self.SU_rewards.append(sum_reward / self.env.N)
+            if len(self.SU_rewards) > self.num_to_get_mean:
+                self.SU_rewards = self.SU_rewards[1:]
+
+            self.mean_rhos.append(sum_Rho / self.env.N)
+            if len(self.mean_rhos) > self.num_to_get_mean:
+                self.mean_rhos = self.mean_rhos[1:]
+
+            self.R_0_types.append(np.array(r_0_type))
+            self.R_1_types.append(np.array(r_1_type))
+            self.R_2_types.append(np.array(r_2_type))
 
             self.plot_rewards()
 
@@ -272,3 +351,4 @@ class Train:
         self.plot_rewards(show_result = True)
         plt.ioff()
         plt.show()
+        torch.save(self.target_net.state_dict(), 'res/check_point/target_model.pth')

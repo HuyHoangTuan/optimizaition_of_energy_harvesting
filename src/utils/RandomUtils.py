@@ -3,7 +3,7 @@ import random
 
 seed = 2
 random.seed(2)
-RandomUtils = np.random.default_rng(seed = seed)
+RandomUtils = np.random.default_rng(seed = 2)
 
 def custom_random(size = None):
     return RandomUtils.random(size = size)

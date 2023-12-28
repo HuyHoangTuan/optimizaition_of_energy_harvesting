@@ -14,7 +14,7 @@ class Environment:
             Xi_p = [0.1, 0.1],
             Xi_sp = [0.1, 0.1],
             I = [0.5, 0.5],
-            Lambda = 0.1,
+            Lambda = 0.4,
             N = 20,
             Gamma = 0.99,
             Alpha = 0.003,
@@ -141,6 +141,7 @@ class Environment:
 
     def _get_Rho(self, action):
         _, _, Rho = self.actions_space[action]
+        Rho = 0.5
         return Rho
 
     def _get_P(self, action):
