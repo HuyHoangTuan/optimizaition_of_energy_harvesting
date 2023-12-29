@@ -14,8 +14,12 @@ if __name__ == '__main__':
     from modules.train import Train
 
     try:
+        import time
+        start_time = time.time()
         train = Train()
         train.start_train()
+        end_time = time.time()
+        LogUtils.info("MAIN", f"Time: {end_time - start_time}")
     except:
         print("Unexpected error:", sys.exc_info()[0])
         LogUtils.delete_log()

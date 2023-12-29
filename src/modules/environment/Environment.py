@@ -141,7 +141,7 @@ class Environment:
 
     def _get_Rho(self, action):
         _, _, Rho = self.actions_space[action]
-        Rho = 0.5
+        # Rho = 0.5
         return Rho
 
     def _get_P(self, action):

@@ -79,10 +79,13 @@ class Train:
         self.rhos = []
         self.mean_rhos = []
         self.sample = []
+        self.sum_rates = []
+        self.mean_sum_rates = []
 
         # plt
         self.SU_rewards_t = []
         self.mean_rhos_t = []
+        self.mean_sum_rates_t = []
 
     def select_action(self, state, time_slot = 0):
         sample = RandomUtils.custom_random()
@@ -109,6 +112,7 @@ class Train:
         if show_result is False:
             self.SU_rewards_t.append(torch.mean(torch.tensor(self.SU_rewards, dtype = torch.float)))
             self.mean_rhos_t.append(torch.mean(torch.tensor(self.mean_rhos, dtype = torch.float)))
+            self.mean_sum_rates_t.append(torch.mean(torch.tensor(self.mean_sum_rates, dtype = torch.float)))
             plt.clf()
 
         # Plot reward
@@ -126,9 +130,24 @@ class Train:
 
         # ---------------------------------------------------------------------
 
-        # Plot EPS
+        # Plot Sum rate
         # ---------------------------------------------------------------------
         plt.subplot(3, 2, 2)
+        #
+        plt.title('Rates')
+        plt.ylabel('Rate value')
+
+        rates_t = torch.tensor(self.sum_rates, dtype=torch.float)
+        plt.plot(rates_t.numpy())
+
+        mean_sum_rates_t = torch.tensor(self.mean_sum_rates_t, dtype=torch.float)
+        plt.plot(mean_sum_rates_t.numpy())
+
+        # ---------------------------------------------------------------------
+
+        # Plot EPS
+        # ---------------------------------------------------------------------
+        plt.subplot(3, 2, 4)
         #
         plt.title('Epsilon')
         plt.ylabel('Epsilon value')
@@ -201,6 +220,7 @@ class Train:
         plt.bar(categories, PU2_R_types)
         # ---------------------------------------------------------------------
 
+        plt.tight_layout()
         plt.pause(1/320)  # pause a bit so that plots are updated
         # ---------------------------------------------------------------------
 
@@ -261,6 +281,7 @@ class Train:
 
             sum_reward = 0
             sum_Rho = 0
+            sum_rate = 0
 
             r_0_type = [0, 0]
             r_1_type = [0, 0]
@@ -273,6 +294,7 @@ class Train:
                 v = observation[0]
                 r_0_type[v] += 1 if reward_type == 0 else 0
                 r_1_type[v] += 1 if reward_type == 1 else 0
+                sum_rate += reward.squeeze(0).item() if reward_type == 1 else 0
                 r_2_type[v] += 1 if reward_type == 2 else 0
 
                 sum_reward += reward.squeeze(0).item()
@@ -311,7 +333,8 @@ class Train:
                 'TRAIN',
                 f'({i_episode + 1}/{self.num_episode}): '
                 f'reward: {sum_reward}, '
-                f'rho: {sum_Rho / self.env.N}'
+                f'rho: {sum_Rho / self.env.N}, '
+                f'rates: {sum_rate/self.env.N}'
 
             )
 
@@ -325,12 +348,18 @@ class Train:
 
                 LogUtils.info('TRAIN', f'SAVE MODEL: best_reward: {best_reward / (i_episode + 1)}')
 
+            self.sum_rates.append(sum_rate / self.env.N)
+
             self.rhos.append(sum_Rho / self.env.N)
 
             self.rewards.append(sum_reward / self.env.N)
 
             self.eps_e.append(torch.mean(torch.tensor(self.eps, dtype = torch.float)))
             self.eps = []
+
+            self.mean_sum_rates.append(sum_rate / self.env.N)
+            if len(self.mean_sum_rates) > self.num_to_get_mean:
+                self.mean_sum_rates = self.mean_sum_rates[1:]
 
             self.SU_rewards.append(sum_reward / self.env.N)
             if len(self.SU_rewards) > self.num_to_get_mean:
