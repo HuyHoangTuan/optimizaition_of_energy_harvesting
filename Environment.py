@@ -62,6 +62,14 @@ class Environment:
 
     return E_h
 
+  def map_to_exponential_function(self , x):
+    # f(min) = 1/20 va f(max) = 1
+    max_val = self.I + self.I + self.C_max
+
+    b = 1/35
+    a = max_val / math.log(1 / b)
+    return b * math.exp(x / a)
+
   def num_action_space(self):
     return len(self.actions_space)
 
@@ -105,6 +113,7 @@ class Environment:
 
     self.C = min(self.C + E_h - (1 - k) * self.Mu * P * self.T_s, self.C_max)
     self.C = max(self.C , 0)
+    Rate = 0
     Reward = 0
     Foul = []
     Foul_cnt = 0
@@ -113,36 +122,39 @@ class Environment:
     P_p1 = self.arr_P_p1[self.TimeSlot]
     P_p2 = self.arr_P_p2[self.TimeSlot]
     if k == 0:
-      P_dbw = 10 * math.log10(P) + 30
+      P_dbm = 10 * math.log10(P) + 30
 
-      P_p1_dbw = 10 * math.log10(P_p1) + 30
-      P_p2_dbw = 10 * math.log10(P_p2) + 30
+      P_p1_dbm = 10 * math.log10(P_p1) + 30
+      P_p2_dbm = 10 * math.log10(P_p2) + 30
 
-      P_10 = 10 ** (P_dbw / 10)
-      P_p1_10 = 10 ** (P_p1_dbw / 10)
-      P_p2_10 = 10 ** (P_p2_dbw / 10)
+      P_10 = 10 ** (P_dbm / 10)
+      P_p1_10 = 10 ** (P_p1_dbm / 10)
+      P_p2_10 = 10 ** (P_p2_dbm / 10)
 
 
       Infer = (1 - Rho) * self.T_s * (P_p1_10 * self.g_p1r + P_p2_10 * self.g_p2r)
       R = self.Mu * self.T_s * math.log2(1 + P_10 * self.g_s / (self.N_0 + Infer))
       if (k == 0  and self.Mu * P * self.T_s <= self.C and P * self.g_sp1 <= self.I and P * self.g_sp2 <= self.I):
-        Reward = R
+        d = (self.C - self.Mu * P * self.T_s) + (self.I - P * self.g_sp1) + (self.I - P * self.g_sp2)
+        d = self.map_to_exponential_function(d)
+        Rate = R
+        Reward = R / d
       elif (k == 1):
         Reward = 0
       else:
         if(self.Mu * P * self.T_s > self.C):
           Foul.append(1)
           Foul_cnt += 1
-          Reward += - math.log2(1 + (self.Mu * P * self.T_s - self.C) * self.g_s / (self.N_0 ))
+          Reward += - self.Mu * self.T_s * math.log2(1 + (self.Mu * P * self.T_s - self.C) * self.g_s / (self.N_0 ))
         if(P * self.g_sp1 > self.I):
           Foul.append(2)
           Foul_cnt += 1
-          Reward += - math.log2(1 + (P * self.g_sp1 - self.I) / (self.N_0 ))
+          Reward += - self.Mu * self.T_s * math.log2(1 + (P * self.g_sp1 - self.I) / (self.N_0 ))
           #Reward += - (P * self.g_sp1 - self.I)
         if(P * self.g_sp2 > self.I):
           Foul.append(3)
           Foul_cnt += 1
-          Reward += - math.log2(1 + (P * self.g_sp2 - self.I) / (self.N_0 ))
+          Reward += - self.Mu * self.T_s * math.log2(1 + (P * self.g_sp2 - self.I) / (self.N_0 ))
           #Reward += - (P * self.g_sp2 - self.I)
 
     if not Foul:
@@ -162,7 +174,7 @@ class Environment:
 
     #State = (self.E_prev , self.C , self.g_s , self.g_sp1 , self.g_sp2 , self.g_p1s , self.g_p2s , self.g_p1r , self.g_p2r , Foul)
     #State = (self.E_prev , self.C , P_p1 , P_p2 , Foul)
-    State = (self.E_prev, self.C,P_p1 , P_p2 , self.g_s, self.g_sp1, self.g_sp2, self.g_p1s, self.g_p2s, self.g_p1r, self.g_p2r, Foul ,Foul_cnt)
+    State = (self.E_prev, self.C,P_p1 , P_p2 , self.g_s, self.g_sp1, self.g_sp2, self.g_p1s, self.g_p2s, self.g_p1r, self.g_p2r, Foul ,Foul_cnt , Rate)
     self.get_g()
 
     return (State , Reward , Done)

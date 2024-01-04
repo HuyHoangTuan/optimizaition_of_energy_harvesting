@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-Episodes = 1400 + 1
+Episodes = 2000 + 1
 N = 20
 const_C_max = 0.5
 const_P_max = 1

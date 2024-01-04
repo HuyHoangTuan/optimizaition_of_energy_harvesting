@@ -13,7 +13,7 @@ from os.path import exists
 import numpy as np
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-NUM_EPISODES = 1400
+NUM_EPISODES = 2000
 NUM_STEP = 20
 BATCH_SIZE = 128
 ALPHA = 0.003
@@ -59,9 +59,14 @@ def select_action(state ,episode = 501):
         sample = EPS_MAX
         steps_done = 0
 
+
     if sample > eps_threshold:
+        policy_net.eval()
         with torch.no_grad():
-            return policy_net(state).max(1)[1].view(1,1)
+            res = policy_net(state).max(1)[1].view(1,1)
+            policy_net.train(True)
+            return res
+
     else :
         return torch.tensor([[env.action_sampling()]] , dtype=torch.long ,device = device)
 
@@ -158,12 +163,18 @@ def optimize_model():
     action_batch = torch.cat(batch.action)
     reward_batch = torch.cat(batch.reward)
 
+    #policy_net.eval()
     y = policy_net(state_batch)
+    #policy_net.train(True)
+
     state_action_values = y.gather(1,action_batch)
 
     next_state_values = torch.zeros(BATCH_SIZE , device = device)
+
+    target_net.eval()
     with torch.no_grad():
         next_state_values[non_final_mask] = target_net(non_final_next_states).max(1)[0]
+    target_net.train(True)
 
     expected_state_action_values = (next_state_values * GAMMA) + reward_batch
 
@@ -231,7 +242,7 @@ for i_episode in range(NUM_EPISODES):
         # Foul_action = Foul_action + Foul
         # observation = (E_prev , C , P1 , P2)
 
-        (E_prev , C , P1 , P2 , *g_prev , Foul , Foul_cnt) = observation
+        (E_prev , C , P1 , P2 , *g_prev , Foul , Foul_cnt , Rate) = observation
         Foul_action = Foul_action + Foul
         Foul_per_episode_cnt += Foul_cnt
         g_prev = np.array(g_prev)
@@ -249,7 +260,7 @@ for i_episode in range(NUM_EPISODES):
         reward_item = reward.squeeze(0).item()
         sum_reward += reward_item
 
-        sum_rate += reward_item if reward_item >= 0 else 0
+        sum_rate += Rate
         max_r = max(max_r , reward)
 
         # state = torch.round(state , decimals=2)

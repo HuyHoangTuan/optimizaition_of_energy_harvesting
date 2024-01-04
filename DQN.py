@@ -23,7 +23,8 @@ class DQN(nn.Module):
   def __init__(self, n_observations , n_actions):
     super(DQN, self).__init__()
     #self.layer1 = nn.Linear(n_observations , 128)
-    self.layer2 = nn.LSTM(n_observations , 128 , 5)
+    self.layer1 = nn.BatchNorm1d(n_observations)
+    self.layer2 = nn.LSTM(n_observations , 128 , 10)
     #self.layer3 = nn.Linear(256, 256)
     #self.layer4 = nn.Linear(256 , 256)
     #self.layer5 = nn.Linear(256 , 256)
@@ -31,6 +32,7 @@ class DQN(nn.Module):
 
   def forward(self, x):
     #x = F.relu(self.layer1(x))
+    x = self.layer1(x)
     x, _ = self.layer2(x)
     #x = F.relu(self.layer2(x))
     #x = F.relu(self.layer3(x))
