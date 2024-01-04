@@ -20,14 +20,14 @@ is_ipython = 'inline' in matplotlib.get_backend()
 if is_ipython:
     from IPython import display
 
-EPISODE = 2000 if torch.cuda.is_available() else 2000
-
+EPISODE = 1600 if torch.cuda.is_available() else 1600
+IS_DYNAMIC_RHO = False
 class Train:
     def __init__(
             self,
             num_episode = EPISODE,
-            env = Environment(Episode = EPISODE),
-            batch_size = 256,
+            env = Environment(Episode = EPISODE, Dynamic_Rho = IS_DYNAMIC_RHO),
+            batch_size = 128,
             gamma = 0.99,
             eps_max = 1,
             eps_min = 0.01,
@@ -58,15 +58,16 @@ class Train:
         self.policy_net = DQNModel(n_observations, n_actions).to(self.device)
         self.target_net = DQNModel(n_observations, n_actions).to(self.device)
 
-        if exists('res/check_point/target_model.pth'):
-            self.policy_net.load_state_dict(torch.load('res/check_point/target_model.pth'))
+        # if exists('res/check_point/target_model.pth'):
+            # self.policy_net.load_state_dict(torch.load('res/check_point/target_model.pth'))
 
         self.target_net.load_state_dict(self.policy_net.state_dict())
 
         self.optimizer = optim.SGD(self.policy_net.parameters(), lr = self.learning_rate)
         self.memory = ReplayMemory(10000)
 
-        # self.steps_done = 0
+        self.eps_threshold = 500 # Episode
+        self.steps_done = 0
         # visualization
         self.num_to_get_mean = 100
         self.rewards = []
@@ -81,25 +82,36 @@ class Train:
         self.sample = []
         self.sum_rates = []
         self.mean_sum_rates = []
+        self.actions = []
 
         # plt
         self.SU_rewards_t = []
         self.mean_rhos_t = []
         self.mean_sum_rates_t = []
 
-    def select_action(self, state, time_slot = 0):
+    def select_action(self, state, episode = 0):
         sample = RandomUtils.custom_random()
         eps_threshold = self.eps_min + (self.eps_max - self.eps_min) * math.exp(
-            -1. * time_slot * self.eps_decay
+            -1. * self.steps_done * self.eps_decay
         )
+
+        if episode < self.eps_threshold:
+            sample = -1
+            self.steps_done = 0
+        else:
+            self.steps_done += 1
+
         self.eps.append(eps_threshold)
         self.sample.append(sample)
+
         # self.steps_done += 1
         if sample > eps_threshold:
+            # self.actions.append(1)
             with torch.no_grad():
-                action = self.policy_net(state).max(1)[1].view(1, 1)
+                action = self.policy_net(state).max(1).indices.view(1, 1)
                 return action
         else:
+            # self.actions.append(0)
             return torch.tensor(
                 [[RandomUtils.sample([s for s in range(len(self.env.actions_space))], 1)[0]]], device = self.device,
                 dtype = torch.long
@@ -111,7 +123,7 @@ class Train:
 
         if show_result is False:
             self.SU_rewards_t.append(torch.mean(torch.tensor(self.SU_rewards, dtype = torch.float)))
-            self.mean_rhos_t.append(torch.mean(torch.tensor(self.mean_rhos, dtype = torch.float)))
+            self.mean_rhos_t.append(torch.mean(torch.tensor(self.mean_rhos, dtype = torch.float32)))
             self.mean_sum_rates_t.append(torch.mean(torch.tensor(self.mean_sum_rates, dtype = torch.float)))
             plt.clf()
 
@@ -167,8 +179,10 @@ class Train:
         rhos_t = torch.tensor(self.rhos, dtype = torch.float)
         plt.plot(rhos_t.numpy())
 
-        mean_rhos_t = torch.tensor(self.mean_rhos_t, dtype = torch.float)
-        plt.plot(mean_rhos_t.numpy())
+        mean_rhos_t = torch.tensor(self.mean_rhos_t, dtype = torch.float32)
+        # print(mean_rhos_t.numpy().astype(np.float32))
+        if IS_DYNAMIC_RHO is True:
+            plt.plot(mean_rhos_t.numpy())
 
         # ---------------------------------------------------------------------
 
@@ -256,7 +270,7 @@ class Train:
         state_action_values = self.policy_net(state_batch).gather(1, action_batch)
         next_state_values = torch.zeros(self.batch_size, device = self.device)
         with torch.no_grad():
-            next_state_values[non_final_mask] = self.target_net(non_final_next_states).max(1)[0]
+            next_state_values[non_final_mask] = self.target_net(non_final_next_states).max(1).values
 
         expected_state_action_values = (next_state_values * self.gamma) + reward_batch
 
@@ -305,7 +319,8 @@ class Train:
                 if done == True:
                     next_state = None
                 else:
-                    next_state = torch.tensor(observation, dtype = torch.float32, device = self.device).unsqueeze(0)
+                    next_state = torch.tensor(observation, dtype = torch.float32, device = self.device)
+                    next_state = next_state.unsqueeze(0)
 
                 self.memory.push(state, action, next_state, reward)
 
@@ -348,20 +363,20 @@ class Train:
 
                 LogUtils.info('TRAIN', f'SAVE MODEL: best_reward: {best_reward / (i_episode + 1)}')
 
-            self.sum_rates.append(sum_rate / self.env.N)
+            self.sum_rates.append(sum_rate)
 
             self.rhos.append(sum_Rho / self.env.N)
 
-            self.rewards.append(sum_reward / self.env.N)
+            self.rewards.append(sum_reward)
 
             self.eps_e.append(torch.mean(torch.tensor(self.eps, dtype = torch.float)))
             self.eps = []
 
-            self.mean_sum_rates.append(sum_rate / self.env.N)
+            self.mean_sum_rates.append(sum_rate)
             if len(self.mean_sum_rates) > self.num_to_get_mean:
                 self.mean_sum_rates = self.mean_sum_rates[1:]
 
-            self.SU_rewards.append(sum_reward / self.env.N)
+            self.SU_rewards.append(sum_reward)
             if len(self.SU_rewards) > self.num_to_get_mean:
                 self.SU_rewards = self.SU_rewards[1:]
 

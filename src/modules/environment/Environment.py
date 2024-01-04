@@ -14,7 +14,7 @@ class Environment:
             Xi_p = [0.1, 0.1],
             Xi_sp = [0.1, 0.1],
             I = [0.5, 0.5],
-            Lambda = 0.4,
+            Lambda = 0.1,
             N = 20,
             Gamma = 0.99,
             Alpha = 0.003,
@@ -27,6 +27,7 @@ class Environment:
             A = 10,
             C_max = 0.5,
             Episode = 1400,
+            Dynamic_Rho = True
 
     ):
         # SU-Tx ~ Agent
@@ -53,6 +54,7 @@ class Environment:
         self.E_max = E_max
         self.Phi = Phi
         self.Rho = Rho
+        self.Is_Dynamic_Rho = Dynamic_Rho
         self.A = A
         self.C_max = C_max
         self.Episode = Episode
@@ -141,7 +143,8 @@ class Environment:
 
     def _get_Rho(self, action):
         _, _, Rho = self.actions_space[action]
-        # Rho = 0.5
+        if self.Is_Dynamic_Rho is False:
+            return self.Rho
         return Rho
 
     def _get_P(self, action):
@@ -164,13 +167,10 @@ class Environment:
         return Interference
 
     def _calc_E_TS(self, P_p, G_ps, Rho):
-        E_TS = 0
-        for i in range(self.NumPU):
-            if P_p[i] >= self.Lambda:
-                E_TS += Rho * self.T_s * P_p[i] * self.Eta * G_ps[i]
-            else:
-                E_TS += 0
-        return E_TS
+        if P_p >= self.Lambda:
+            return Rho * self.T_s * P_p * self.Eta * G_ps
+        else:
+            return 0
 
     def _Is_Interference(self, P, g_sp):
         for i in range(self.NumPU):
@@ -220,7 +220,7 @@ class Environment:
         G_ps = (np.array(self.g_ps[episode])[:, self._Time_Slot - 1]).tolist()
 
         E_ambient = self._E_ambient[episode][self._Time_Slot - 1]
-        E_TS = self._calc_E_TS(P_p, G_ps, Rho)
+        E_TS = self._calc_E_TS(P_p[v], G_ps[v], Rho)
         E = E_TS + E_ambient
 
         C = min(prev_C + prev_E - (1.0 - prev_k) * prev_mu * prev_P * self.T_s, self.C_max)
