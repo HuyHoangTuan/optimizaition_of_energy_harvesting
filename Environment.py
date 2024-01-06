@@ -66,7 +66,7 @@ class Environment:
     # f(min) = 1/20 va f(max) = 1
     max_val = self.I + self.I + self.C_max
 
-    b = 1/35
+    b = 1/10
     a = max_val / math.log(1 / b)
     return b * math.exp(x / a)
 
@@ -135,8 +135,8 @@ class Environment:
       Infer = (1 - Rho) * self.T_s * (P_p1_10 * self.g_p1r + P_p2_10 * self.g_p2r)
       R = self.Mu * self.T_s * math.log2(1 + P_10 * self.g_s / (self.N_0 + Infer))
       if (k == 0  and self.Mu * P * self.T_s <= self.C and P * self.g_sp1 <= self.I and P * self.g_sp2 <= self.I):
-        d = (self.C - self.Mu * P * self.T_s) + (self.I - P * self.g_sp1) + (self.I - P * self.g_sp2)
-        d = self.map_to_exponential_function(d)
+        d = (self.C - self.Mu * P * self.T_s) * (self.I - P * self.g_sp1) * (self.I - P * self.g_sp2)
+        #d = self.map_to_exponential_function(d)
         Rate = R
         Reward = R / d
       elif (k == 1):
