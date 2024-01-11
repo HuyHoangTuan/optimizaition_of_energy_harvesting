@@ -27,8 +27,8 @@ class Environment:
             A = 10,
             C_max = 0.5,
             Episode = 1400,
-            Dynamic_Rho = True
-
+            Dynamic_Rho = True,
+            reward_function_id = 0
     ):
         # SU-Tx ~ Agent
         # reward ~ instantaneous achievable rate
@@ -41,6 +41,7 @@ class Environment:
 
         LogUtils.info('ENV', 'Started init Environment')
 
+        self.Reward_Function_ID = reward_function_id
         self.NumPU = NumPU
         self.P_max = P_max
         self.I = I
@@ -104,14 +105,24 @@ class Environment:
             self._E_ambient.append(RandomUtils.uniform(0, self.E_max, self.N))
 
         # action spaces
-        k = [0]
-        delta_P = 1.0 / 32.0
-        P = [i * delta_P for i in range(1, int(0.5 / delta_P) * 2 + 1)]
-        delta_Rho = 1.0 / 8.0
-        Rho = [i * delta_Rho for i in range(0, int(1.0 / delta_Rho))]
-        actions_space = np.array(np.meshgrid(k, P, Rho)).T.reshape(-1, 3)
+        # Huy's  edition
+        # k = [0]
+        # delta_P = 1.0 / 32.0
+        # P = [i * delta_P for i in range(1, int(0.5 / delta_P) * 2 + 1)]
+        # delta_Rho = 1.0 / 8.0
+        # Rho = [i * delta_Rho for i in range(0, int(1.0 / delta_Rho))]
+        # actions_space = np.array(np.meshgrid(k, P, Rho)).T.reshape(-1, 3)
+        # actions_space = np.append(actions_space, np.array([[1, 1.0, 0]]), axis = 0)
+        # self.actions_space = [tuple(x) for x in actions_space]
+        #
+        # Cong's edition
+        k_value = [0]
+        Rho_value = [s * 0.1 for s in range(0, 10, 1)]
+        P_value = [s * 0.01 for s in range(1, 53, 1)]
+        actions_space = np.array(np.meshgrid(k_value, P_value, Rho_value)).T.reshape(-1, 3)
         actions_space = np.append(actions_space, np.array([[1, 1.0, 0]]), axis = 0)
         self.actions_space = [tuple(x) for x in actions_space]
+
         RandomUtils.shuffle(self.actions_space)
         LogUtils.info('ENV', f'ACTIONS_SPACE: {self.get_num_actions()}')
 
@@ -223,25 +234,49 @@ class Environment:
         E_TS = self._calc_E_TS(P_p[v], G_ps[v], Rho)
         E = E_TS + E_ambient
 
-        C = min(prev_C + prev_E - (1.0 - prev_k) * prev_mu * prev_P * self.T_s, self.C_max)
+        C = max(0.0, min(prev_C + prev_E - (1.0 - prev_k) * prev_mu * prev_P * self.T_s, self.C_max))
 
-        P_dbw = self._convert_2_dbW(P)
-        P_p_dbw = self._convert_2_dbW(P_p[v])
-
+        R = 0
         R_type = 0
-        R = -self.Phi
-        if k == 0 and mu * P * self.T_s <= C:
-            if P * G_sp[v] <= self.I[v]:
-                if v == 1:
+        if self.Reward_Function_ID == 0:
+            R_type = 0
+            R = -self.Phi
+            if k == 0 and mu * P * self.T_s <= C:
+                if P * G_sp[v] <= self.I[v]:
+                    P_dbw = self._convert_2_dbW(P)
+                    P_p_dbw = self._convert_2_dbW(P_p[v])
+
+                    if v == 1:
+                        R_type = 1
+                        R = mu * self.T_s * math.log2(1 + (P_dbw * G_s) / (self.N_0 + P_p_dbw * G_pr[v]))
+                    else:
+                        R_type = 1
+                        R = mu * self.T_s * math.log2(1 + (P_dbw * G_s) / self.N_0)
+            else:
+                if k == 1 and mu * P * self.T_s > C:
+                    R_type = 2
+                    R = 0
+        elif self.Reward_Function_ID == 1:
+            P_dbw = self._convert_2_dbW(P)
+            P_p_dbw = self._convert_2_dbW(P_p[v])
+
+            Infer = mu * self.T_s * (P_p_dbw * G_pr[v])
+            R = mu * self.T_s * math.log2(1 + (P_dbw * G_s) / (self.N_0 + Infer))
+
+            if k == 0 and mu * P * self.T_s <= C:
+                if P * G_sp[v] <= self.I[v]:
                     R_type = 1
-                    R = mu * self.T_s * math.log2(1 + (P_dbw * G_s) / (self.N_0 + P_p_dbw * G_pr[v]))
-                else:
-                    R_type = 1
-                    R = mu * self.T_s * math.log2(1 + (P_dbw * G_s) / self.N_0)
-        else:
-            if k == 1 and mu * P * self.T_s > C:
+                    d = (C - mu * P * self.T_s) * (self.I[v] - P * G_sp[v])
+                    R = R / d
+            elif k == 1:
                 R_type = 2
                 R = 0
+            else:
+                R_type = 3
+                if mu * P * self.T_s > C:
+                    R += - mu * self.T_s * math.log2(1 + (mu * P * self.T_s - C) * G_s / self.N_0)
+                if P * G_sp[v] > self.I[v]:
+                    R += - mu * self.T_s * math.log2(1 + (P * G_sp[v] - self.I[v]) / self.N_0)
 
         state = (
             v,

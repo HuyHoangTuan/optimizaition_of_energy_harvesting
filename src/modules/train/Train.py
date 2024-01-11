@@ -20,13 +20,12 @@ is_ipython = 'inline' in matplotlib.get_backend()
 if is_ipython:
     from IPython import display
 
-EPISODE = 1600 if torch.cuda.is_available() else 1600
-IS_DYNAMIC_RHO = False
 class Train:
     def __init__(
             self,
-            num_episode = EPISODE,
-            env = Environment(Episode = EPISODE, Dynamic_Rho = IS_DYNAMIC_RHO),
+            num_episode = 1600,
+            is_dynamic_rho = False,
+            reward_function_id = 0,
             batch_size = 128,
             gamma = 0.99,
             eps_max = 1,
@@ -35,7 +34,15 @@ class Train:
             tau = 0.001,
             learning_rate = 0.003,  # alpha
     ):
-        self.env = env
+        self.is_dynamic_rho = is_dynamic_rho
+        self.reward_function_id = reward_function_id
+        self.num_episode = num_episode
+
+        self.env = Environment(
+            Episode = self.num_episode,
+            Dynamic_Rho = self.is_dynamic_rho,
+            reward_function_id = self.reward_function_id
+        )
 
         self.batch_size = batch_size
         self.gamma = gamma
@@ -44,7 +51,7 @@ class Train:
         self.eps_decay = eps_decay
         self.tau = tau
         self.learning_rate = learning_rate
-        self.num_episode = num_episode
+
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self._init_evn()
@@ -181,7 +188,7 @@ class Train:
 
         mean_rhos_t = torch.tensor(self.mean_rhos_t, dtype = torch.float32)
         # print(mean_rhos_t.numpy().astype(np.float32))
-        if IS_DYNAMIC_RHO is True:
+        if self.is_dynamic_rho is True:
             plt.plot(mean_rhos_t.numpy())
 
         # ---------------------------------------------------------------------
@@ -302,7 +309,7 @@ class Train:
             r_2_type = [0, 0]
             for t in count():
                 action = self.select_action(state, i_episode)
-                observation, (_, _, Rho), (reward, reward_type), time_slot = self.env.step(action.item(), i_episode)
+                observation, (k, P, Rho), (reward, reward_type), time_slot = self.env.step(action.item(), i_episode)
                 reward = torch.tensor([reward], dtype = torch.float32, device = self.device)
 
                 v = observation[0]
@@ -332,11 +339,11 @@ class Train:
                     self.target_net.load_state_dict(self.policy_net.state_dict())
 
                 LogUtils.info(
-                    'TRAIN',
+                    'TRAIN_EPISODE',
                     f'({i_episode + 1}): '
                     f'action: {action.squeeze(0).item()}, '
                     f'observation: {observation}, '
-                    f'rho: {Rho}, '
+                    f'action_value: {k}, {P}, {Rho}, '
                     f'reward: {reward.squeeze(0).item()} - {reward_type}, '
                     f'eps: {self.eps[-1]}, '
                     f'sample: {self.sample[-1]}, '
@@ -350,10 +357,9 @@ class Train:
                 f'reward: {sum_reward}, '
                 f'rho: {sum_Rho / self.env.N}, '
                 f'rates: {sum_rate/self.env.N}'
-
             )
 
-            sum_reward_episode += sum_reward / self.env.N
+            sum_reward_episode += sum_reward
             if best_reward < sum_reward_episode:
                 best_reward = sum_reward_episode
                 # torch.save(self.target_net.state_dict(), 'res/check_point/policy_model.pth')
