@@ -245,7 +245,6 @@ class Environment:
                 if P * G_sp[v] <= self.I[v]:
                     P_dbw = self._convert_2_dbW(P)
                     P_p_dbw = self._convert_2_dbW(P_p[v])
-
                     if v == 1:
                         R_type = 1
                         R = mu * self.T_s * math.log2(1 + (P_dbw * G_s) / (self.N_0 + P_p_dbw * G_pr[v]))
@@ -259,15 +258,11 @@ class Environment:
         elif self.Reward_Function_ID == 1:
             P_dbw = self._convert_2_dbW(P)
             P_p_dbw = self._convert_2_dbW(P_p[v])
-
-            Infer = mu * self.T_s * (P_p_dbw * G_pr[v])
-            R = mu * self.T_s * math.log2(1 + (P_dbw * G_s) / (self.N_0 + Infer))
-
             if k == 0 and mu * P * self.T_s <= C:
                 if P * G_sp[v] <= self.I[v]:
                     R_type = 1
-                    d = (C - mu * P * self.T_s) * (self.I[v] - P * G_sp[v])
-                    R = R / d
+                    Infer = mu * self.T_s * (P_p_dbw * G_pr[v])
+                    R = mu * self.T_s * math.log2(1 + (P_dbw * G_s) / (self.N_0 + Infer))
             elif k == 1:
                 R_type = 2
                 R = 0
