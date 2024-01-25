@@ -66,7 +66,7 @@ class Environment:
         # The channel gain power between SU-TX and SU-RX
         self.g_s = []
         for i in range(self.Episode):
-            self.g_s.append(RandomUtils.exponential(1.0 / Xi_s, self.N))
+            self.g_s.append(RandomUtils.rayleigh(Xi_s, self.N))
 
         # g_pr: [ [Episode][PU][Time_Slot] ]
         # The channel power gain between PU and SU-RX
@@ -74,7 +74,7 @@ class Environment:
         for i in range(self.Episode):
             self.g_pr.append([])
             for j in range(NumPU):
-                self.g_pr[i].append(RandomUtils.exponential(1.0 / Xi_pr[j], self.N))
+                self.g_pr[i].append(RandomUtils.rayleigh(Xi_pr[j], self.N))
 
         # g_sp: [ [Episode][PU][Time_Slot] ]
         # The channel power gain between SU-TX and PU-RX
@@ -82,7 +82,7 @@ class Environment:
         for i in range(self.Episode):
             self.g_sp.append([])
             for j in range(NumPU):
-                self.g_sp[i].append(RandomUtils.exponential(1.0 / Xi_sp[j], self.N))
+                self.g_sp[i].append(RandomUtils.rayleigh(Xi_sp[j], self.N))
 
         # g_ps: [ [Episode][PU][Time_slot] ]
         # The channel power gain between PU and SU-TX
@@ -90,7 +90,7 @@ class Environment:
         for i in range(self.Episode):
             self.g_ps.append([])
             for j in range(NumPU):
-                self.g_ps[i].append(RandomUtils.exponential(1.0 / Xi_ps[j], self.N))
+                self.g_ps[i].append(RandomUtils.rayleigh(Xi_ps[j], self.N))
 
         # P_P: [ [Episode][PU][Time_Slot] ]
         self._P_p = []
