@@ -15,6 +15,13 @@ if __name__ == '__main__':
         from modules.analysis import PAndRhoAnalysis
         path = args[args.index('-p_and_rho') + 1]
         PAndRhoAnalysis.plot(path)
+    elif '-test' in args:
+        # from utils import LogUtils
+        from modules.train import RiskAverseTrain
+
+        train = RiskAverseTrain()
+
+        # LogUtils.delete_log()
     else:
         from utils import LogUtils
         from modules.train import Train
