@@ -66,7 +66,7 @@ class Environment:
         # The channel gain power between SU-TX and SU-RX
         self.g_s = []
         for i in range(self.Episode):
-            self.g_s.append(RandomUtils.exponential(1.0 / Xi_s, self.N))
+            self.g_s.append(RandomUtils.rayleigh(Xi_s, self.N))
 
         # g_pr: [ [Episode][PU][Time_Slot] ]
         # The channel power gain between PU and SU-RX
@@ -74,7 +74,7 @@ class Environment:
         for i in range(self.Episode):
             self.g_pr.append([])
             for j in range(NumPU):
-                self.g_pr[i].append(RandomUtils.exponential(1.0 / Xi_pr[j], self.N))
+                self.g_pr[i].append(RandomUtils.rayleigh(Xi_pr[j], self.N))
 
         # g_sp: [ [Episode][PU][Time_Slot] ]
         # The channel power gain between SU-TX and PU-RX
@@ -82,7 +82,7 @@ class Environment:
         for i in range(self.Episode):
             self.g_sp.append([])
             for j in range(NumPU):
-                self.g_sp[i].append(RandomUtils.exponential(1.0 / Xi_sp[j], self.N))
+                self.g_sp[i].append(RandomUtils.rayleigh(Xi_sp[j], self.N))
 
         # g_ps: [ [Episode][PU][Time_slot] ]
         # The channel power gain between PU and SU-TX
@@ -90,7 +90,7 @@ class Environment:
         for i in range(self.Episode):
             self.g_ps.append([])
             for j in range(NumPU):
-                self.g_ps[i].append(RandomUtils.exponential(1.0 / Xi_ps[j], self.N))
+                self.g_ps[i].append(RandomUtils.rayleigh(Xi_ps[j], self.N))
 
         # P_P: [ [Episode][PU][Time_Slot] ]
         self._P_p = []
@@ -238,7 +238,6 @@ class Environment:
 
         R = 0
         R_type = 0
-
         if self.Reward_Function_ID == 0:
             R_type = 0
             R = -self.Phi
@@ -258,18 +257,11 @@ class Environment:
                     R_type = 2
                     R = 0
         elif self.Reward_Function_ID == 1:
-            R = 0
-            R_type = 0
-
             P_dbw = self._convert_2_dbW(P)
             P_p_dbw = self._convert_2_dbW(P_p[v])
-
             if k == 0 and mu * P * self.T_s <= C:
                 if P * G_sp[v] <= self.I[v]:
                     R_type = 1
-                    # d = (C - mu * P * self.T_s) * (self.I[v] - P * G_sp[v])
-                    # R = R / d
-
                     Infer = mu * self.T_s * (P_p_dbw * G_pr[v])
                     R = mu * self.T_s * math.log2(1 + (P_dbw * G_s) / (self.N_0 + Infer))
             elif k == 1:

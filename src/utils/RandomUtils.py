@@ -23,6 +23,12 @@ def choice(a, size = None, replace = True, p = None, axis = 0, shuffle = True):
 def sample(population, k, *, counts = None):
     return random.sample(population, k, counts = counts)
 
+def rayleigh(Lambda = 1.0, size = None):
+    scale = 1.0 / np.sqrt(2 * Lambda)
+    exp = RandomUtils.exponential(scale = scale, size = size)
+    rayleighs = np.sqrt(2 * exp)
+    return rayleighs
+
 def shuffle(x):
     return random.shuffle(x)
-__all__ = ['custom_random', 'uniform', 'normal', 'exponential', 'choice', 'sample', 'shuffle']
+__all__ = ['custom_random', 'uniform', 'normal', 'exponential', 'rayleigh', 'choice', 'sample', 'shuffle']
