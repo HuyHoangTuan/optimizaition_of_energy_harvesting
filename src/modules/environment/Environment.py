@@ -36,8 +36,8 @@ class Environment:
         # k = 1 -> harvest energy
         # s.t.
         # Agent always harvest energy even when transmitting message
-        # Thus, Rho represents the ratio that Agent can harvest energy in the time slot
-        # mu = 1 - Rho represents the ratio that Agent can transmit message in the time slot
+        # Thus, Rho represents the ratio time that Agent can harvest energy in the time slot
+        # mu = 1 - Rho represents the ratio time that Agent can transmit message in the time slot
 
         LogUtils.info('ENV', 'Started init Environment')
 
@@ -230,6 +230,8 @@ class Environment:
         G_sp = (np.array(self.g_sp[episode])[:, self._Time_Slot - 1]).tolist()
         G_ps = (np.array(self.g_ps[episode])[:, self._Time_Slot - 1]).tolist()
 
+        # todo: maybe need to multiply Rho into E_ambient, because 1-Rho is the ratio time that agent
+        # transmit power, thus, rho ratio time that agent harvest energy
         E_ambient = self._E_ambient[episode][self._Time_Slot - 1]
         E_TS = self._calc_E_TS(P_p[v], G_ps[v], Rho)
         E = E_TS + E_ambient

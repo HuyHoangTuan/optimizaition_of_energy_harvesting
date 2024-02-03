@@ -118,7 +118,7 @@ class Train:
         if sample > eps_threshold:
             # self.actions.append(1)
             with torch.no_grad():
-                action = torch.argmax(self.policy_net(state), dim = 1).item()
+                action = torch.argmax(self.policy_net(state), dim = 1)
                 return action
         else:
             # self.actions.append(0)
@@ -354,7 +354,7 @@ class Train:
                     sum_loss += loss.item()
                     count_loss += 1
 
-                if self.steps_done % 10000 == 0:
+                if self.steps_done % 5 == 0:
                     self.target_net.load_state_dict(self.policy_net.state_dict())
 
 
