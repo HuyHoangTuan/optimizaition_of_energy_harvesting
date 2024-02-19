@@ -85,6 +85,7 @@ class RiskAverseTrain:
                 value = Q + learning_rate * (self._utility_func(reward + max_Q_next - Q) - x0)
                 self._Q.set_Q(i, state, action, value)
 
+                # todo: update N -> learning rate
 
         return 0
 
