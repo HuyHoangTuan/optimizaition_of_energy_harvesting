@@ -29,6 +29,10 @@ def rayleigh(Lambda = 1.0, size = None):
     rayleighs = np.sqrt(2 * exp)
     return rayleighs
 
+def poisson(Lambda = 1.0, size = None):
+    return RandomUtils.poisson(lam = Lambda, size = size)
+
 def shuffle(x):
     return random.shuffle(x)
-__all__ = ['custom_random', 'uniform', 'normal', 'exponential', 'rayleigh', 'choice', 'sample', 'shuffle']
+
+__all__ = ['custom_random', 'uniform', 'normal', 'exponential', 'rayleigh', 'choice', 'sample', 'shuffle', 'poisson']

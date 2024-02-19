@@ -27,7 +27,7 @@ class Environment:
             A = 10,
             C_max = 0.5,
             Episode = 1400,
-            Dynamic_Rho = True,
+            Dynamic_Rho = False,
             reward_function_id = 0
     ):
         # SU-Tx ~ Agent
@@ -106,22 +106,22 @@ class Environment:
 
         # action spaces
         # Huy's  edition
-        # k = [0]
-        # delta_P = 1.0 / 32.0
-        # P = [i * delta_P for i in range(1, int(0.5 / delta_P) * 2 + 1)]
-        # delta_Rho = 1.0 / 8.0
-        # Rho = [i * delta_Rho for i in range(0, int(1.0 / delta_Rho))]
-        # actions_space = np.array(np.meshgrid(k, P, Rho)).T.reshape(-1, 3)
-        # actions_space = np.append(actions_space, np.array([[1, 1.0, 0]]), axis = 0)
-        # self.actions_space = [tuple(x) for x in actions_space]
-        #
-        # Cong's edition
-        k_value = [0]
-        Rho_value = [s * 0.1 for s in range(0, 10, 1)]
-        P_value = [s * 0.01 for s in range(1, 53, 1)]
-        actions_space = np.array(np.meshgrid(k_value, P_value, Rho_value)).T.reshape(-1, 3)
+        k = [0]
+        delta_P = 1.0 / 32.0
+        P = [i * delta_P for i in range(1, int(0.5 / delta_P) * 2 + 1)]
+        delta_Rho = 1.0 / 8.0
+        Rho = [i * delta_Rho for i in range(0, int(1.0 / delta_Rho))]
+        actions_space = np.array(np.meshgrid(k, P, Rho)).T.reshape(-1, 3)
         actions_space = np.append(actions_space, np.array([[1, 1.0, 0]]), axis = 0)
         self.actions_space = [tuple(x) for x in actions_space]
+        #
+        # Cong's edition
+        # k_value = [0]
+        # Rho_value = [s * 0.1 for s in range(0, 10, 1)]
+        # P_value = [s * 0.01 for s in range(1, 53, 1)]
+        # actions_space = np.array(np.meshgrid(k_value, P_value, Rho_value)).T.reshape(-1, 3)
+        # actions_space = np.append(actions_space, np.array([[1, 1.0, 0]]), axis = 0)
+        # self.actions_space = [tuple(x) for x in actions_space]
 
         RandomUtils.shuffle(self.actions_space)
         LogUtils.info('ENV', f'ACTIONS_SPACE: {self.get_num_actions()}')
