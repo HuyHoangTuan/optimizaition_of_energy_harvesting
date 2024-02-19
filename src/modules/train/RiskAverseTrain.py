@@ -68,7 +68,7 @@ class RiskAverseTrain:
             return 0
 
         transitions = self._memory.sample(self._batch_size)
-        batch =
+        # batch =
 
         pass
 
