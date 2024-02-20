@@ -1,4 +1,6 @@
 import math
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -12,17 +14,18 @@ from modules.environment import Environment
 from modules.model import DQNModel, QLearning
 from modules.relay import ReplayMemory, Transition
 
+
 class RiskAverseTrain:
     def __init__(
             self,
-            episodes = 1600,
-            eps_max = 1,
-            eps_min = 0.01,
-            eps_decay = 0.001,
-            alpha = 0.003,
-            batch_size = 64,
-            beta = -0.5,
-            risk_control_parameter = 0.5
+            episodes=1600,
+            eps_max=1,
+            eps_min=0.01,
+            eps_decay=0.001,
+            alpha=0.003,
+            batch_size=64,
+            beta=-0.5,
+            risk_control_parameter=0.5
     ):
 
         self._episodes = episodes
@@ -38,7 +41,7 @@ class RiskAverseTrain:
 
         self._init_env()
 
-    def _select_action(self, net, state):
+    def _select_action(self, Q, state):
         sample = RandomUtils.custom_random()
         eps_threshold = self._eps_min + (self._eps_max - self._eps_min) * math.exp(
             -1. * self._eps_drop_rate * self._eps_decay
@@ -46,68 +49,54 @@ class RiskAverseTrain:
         if sample > eps_threshold:
             with torch.no_grad():
                 return torch.argmax(
-                    net(state)
+                    Q(state)
                 )
         else:
             _ = [s for s in range(self._env.get_num_actions())]
-            return torch.tensor(RandomUtils.sample(_, 1), dtype = torch.long, device = self._device)
+            return torch.tensor(RandomUtils.sample(_, 1), dtype=torch.long, device=self._device)
 
     def _init_env(self):
         self._env = Environment(
-            Episode = self._episodes
+            Episode=self._episodes
         )
 
-        n_actions = self._env.get_num_actions()
-        n_observations = self._env.get_num_states()
-
-        # self._memory = ReplayMemory(10000)
-
         self._num_Q_Functions = 2
-        self._Q = QLearning(n_observations, n_actions, self._num_Q_Functions)
-        self._Q_hat = QLearning(n_observations, n_actions, 1)
+        self._Q = QLearning(self._env.get_num_states(), self._env.get_num_actions(), self._num_Q_Functions)
+        self._Q_hat = QLearning(self._env.get_num_states(), self._env.get_num_actions(), 1)
 
     def _utility_func(self, value):
         return -1.0 * math.exp(self._beta * value)
 
     def _optimize_model(self, state, action, next_state, reward):
-        M = RandomUtils.poisson(Lambda = 1.0, size = self._num_Q_Functions)
-        for i in range(self._num_Q_Functions):
-            if M[i] == 1:
-                Q = self._Q.get_Q(i, state, action)
-
-                max_Q_next = -math.inf
-                for action in range(self._env.get_num_actions):
-                    max_Q_next = max(max_Q_next, self._Q.get_Q(i, next_state, action))
-
+        M = RandomUtils.poisson(Lambda=1.0, size=self._num_Q_Functions)
+        for idx in range(self._num_Q_Functions):
+            if M[idx] == 1:
+                Q = self._Q(idx)(state)[action]
+                max_Q_Next = np.max(self._Q(idx)(next_state))
                 x0 = -1
-                learning_rate = self._Q.get_alpha(i, state, action)
+                learning_rate = self._Q(idx).get_learning_rate(state, action)
 
-                value = Q + learning_rate * (self._utility_func(reward + max_Q_next - Q) - x0)
-                self._Q.set_Q(i, state, action, value)
-
-                # todo: update N -> learning rate
+                value = Q + learning_rate * (self._utility_func(reward + max_Q_Next - Q) - x0)
+                self._Q(idx)(state)[action] = value
+                self._Q(idx).update_learning_rate(state, action)
 
         return 0
 
     def _update_Q_Hat(self, H, state):
-        for action in range(self._env.get_num_actions()):
-            # calc average Q
-            Q_minus = 0
-            for i in range(self._num_Q_Functions):
-                Q_minus = Q_minus + self._Q.get(i, state, action)
-            Q_minus = Q_minus / self._num_Q_Functions
+        Q = self._Q(H)(state)
+        Q_Minus = np.mean(
+            np.array([self._Q(idx)(state) for idx in range(self._num_Q_Functions)]),
+            axis=0
+        )
 
+        for action in range(self._env.get_num_actions()):
             # calc standard deviation
             standard_deviation = 0
             for i in range(self._num_Q_Functions):
-                standard_deviation = standard_deviation + (self._Q.get(i, state, action) - Q_minus) ** 2
-            standard_deviation = standard_deviation / (self._num_Q_Functions - 1)
+                standard_deviation += (self._Q(i)(state)[action] - Q_Minus[action]) ** 2 / (self._num_Q_Functions - 1)
 
             # update Q_hat
-            Q = self._Q.get_Q(H, state, action)
-            self._Q_hat.set(0, state, action, Q - self._lambdaP * standard_deviation)
-            
-        return 0
+            self._Q_hat(0)(state)[action] = Q - self._lambdaP * standard_deviation
 
     def start_train(self):
         # LogUtils.info('TRAIN_RISK_AVERSE', f'CUDA: {torch.cuda.is_available()}')
@@ -122,7 +111,7 @@ class RiskAverseTrain:
                 self._update_Q_Hat(H, state)
 
                 # select action according to Q Hat
-                action = self._select_action(self._Q_hat, state)
+                action = self._select_action(self._Q_hat(0), state)
 
                 # update Q Function
                 observation, (k, P, Rho), (reward, reward_type), time_slot = self._env.step(action.item(), i_episode)
@@ -133,7 +122,6 @@ class RiskAverseTrain:
                     next_state = torch.tensor(observation, dtype=torch.float32, device=self._device)
 
                 loss = self._optimize_model(state, action, next_state, reward)
-
 
                 if done:
                     break

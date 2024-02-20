@@ -1,34 +1,61 @@
 import numpy as np
+
+
+class QFunction:
+    def __init__(self, num_actions):
+        self.num_actions = num_actions
+        self.states = {}
+        self.N = {}
+
+    def _check_state(self, state):
+        if state not in self.states:
+            self.states[state] = np.zeros(self.num_actions)
+
+        if state not in self.N:
+            self.N[state] = np.zeros(self.num_actions)
+
+    def __call__(self, state):
+        self._check_state(state)
+        return self.states[state]
+
+    def __add__(self, target):
+        states = list(self.states.keys()) + list(target.states.keys())
+        Q = QFunction(self.num_actions)
+        for state in states:
+            Q.states[state] = np.sum(self.__call__(state), target(state))
+
+        return Q
+
+    def get_learning_rate(self, state, action):
+        self._check_state(state)
+        return self.N[state][action] == 0 if self.N[state][action] == 0 else self.N[state][action]
+
+    def update_learning_rate(self, state, action):
+        self._check_state(state)
+        self.N[state][action] = self.N[state][action] + 1
+
+
 class QLearning:
     def __init__(
             self,
             n_observations,
             n_actions,
-            num_models = 2,
+            num_models=2,
     ):
-        self.Q_Functions = []
-        self.N = []
+        self.QFunctions = []
         self.n_actions = n_actions
-        self.num_models = num_models
         for i in range(num_models):
-            self.Q_Functions.append({})
-            self.N.append({})
+            self.QFunctions.append(QFunction(n_actions))
 
+    def __call__(self, idx):
+        return self.QFunctions[idx]
 
-    def set_Q(self, idx, state, action, value):
-        if state not in self.Q_Functions:
-            self.Q_Functions[idx][state] = np.zeros(self.n_actions)
-        self.Q_Functions[idx][state][action] = value
+    def get_Q(self):
+        Q = QFunction(self.n_actions)
+        for i in range(len(self.QFunctions)):
+            Q = Q + self.QFunctions[i]
 
-    def get_Q(self, idx, state, action):
-        if state not in self.Q_Functions:
-            self.Q_Functions[idx][state] = np.zeros(self.n_actions)
-        return self.Q_Functions[idx][state][action]
+        for state in list(Q.states.keys()):
+            Q.states[state] = Q.states[state] / len(self.QFunctions)
 
-    def get_alpha(self, idx, state, action):
-        if state not in self.N:
-            self.N[idx][state] = np.zeros(self.n_actions)
-        if self.N[idx][state] == 0:
-            return 1
-        else:
-            return 1 / self.N[idx][state][action]
+        return Q
