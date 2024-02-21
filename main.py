@@ -10,45 +10,39 @@ if __name__ == '__main__':
 
     # your code here
     args = sys.argv[1:]
+    is_dynamic_rho = False
+    reward_function_id = 0
+    episodes = 1600
+
+    if '-dynamic_rho' in args:
+        is_dynamic_rho = True
+
+    if '-reward_function' in args:
+        reward_function_id = int(args[args.index('-reward_function') + 1])
+
+    if '-episodes' in args:
+        episodes = int(args[args.index('-episodes') + 1])
 
     if '-p_and_rho' in args:
         from modules.analysis import PAndRhoAnalysis
         path = args[args.index('-p_and_rho') + 1]
         PAndRhoAnalysis.plot(path)
-    elif '-test' in args:
-        # from utils import LogUtils
-        from modules.train import RiskAverseTrain
 
-        train = RiskAverseTrain()
-
-        # LogUtils.delete_log()
     else:
         from utils import LogUtils
-
-
         LogUtils.info("MAIN", "START")
         import time
         try:
             start_time = time.time()
             if '-ra' in args:
                 from modules.train import RiskAverseTrain
-                train = RiskAverseTrain()
+                train = RiskAverseTrain(
+                    episodes=episodes,
+                    is_dynamic_rho=is_dynamic_rho
+                )
                 train.start_train()
             else:
                 from modules.train import Train
-                is_dynamic_rho = False
-                reward_function_id = 0
-                episodes = 1600
-
-                if '-dynamic_rho' in args:
-                    is_dynamic_rho = True
-
-                if '-reward_function' in args:
-                    reward_function_id = int(args[args.index('-reward_function') + 1])
-
-                if '-episodes' in args:
-                    episodes = int(args[args.index('-episodes') + 1])
-
                 train = Train(
                     num_episode = episodes,
                     is_dynamic_rho = is_dynamic_rho,
@@ -57,10 +51,9 @@ if __name__ == '__main__':
                 train.start_train()
 
             end_time = time.time()
-
             LogUtils.info("MAIN", f"Time: {end_time - start_time}")
         except:
-            print("Unexpected error:", sys.exc_info()[0])
+            print("Unexpected error:", sys.exc_info())
             LogUtils.delete_log()
 
         LogUtils.info("MAIN", "END")

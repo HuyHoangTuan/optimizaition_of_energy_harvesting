@@ -377,7 +377,7 @@ class Train:
                 f'({i_episode + 1}/{self.num_episode}): '
                 f'reward: {sum_reward}, '
                 f'rho: {sum_Rho / self.env.N}, '
-                f'rates: {sum_rate/self.env.N}'
+                f'rates: {sum_rate}'
             )
 
             sum_reward_episode += sum_reward

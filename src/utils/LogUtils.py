@@ -34,6 +34,8 @@ def error(module_name, *args):
     _log(LOG_TYPE["ERROR"], module_name, *args)
 
 def delete_log():
+    file_handler.close()
+    logger.removeHandler(file_handler)
     import os
     os.remove(file_name)
 
