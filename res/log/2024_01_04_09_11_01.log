@@ -1,6 +1,0 @@
-[MAIN]: START
-[ENV]: Started init Environment
-[ENV]: ACTIONS_SPACE: 257
-[ENV]: Finished init Environment
-[TRAIN]: actions: 257, observations: 12
-[TRAIN]: CUDA: True

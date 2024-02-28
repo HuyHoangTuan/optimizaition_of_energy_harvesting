@@ -1,7 +1,0 @@
-[MAIN]: START
-[ENV]: Started init Environment
-[ENV]: ACTIONS_SPACE: 521
-[ENV]: Finished init Environment
-[TRAIN]: actions: 521, observations: 12
-[MAIN]: Time: 0.6343028545379639
-[MAIN]: END

@@ -10,6 +10,8 @@ from itertools import count
 
 from utils import LogUtils
 from utils import RandomUtils
+from utils import Parser
+
 from modules.environment import Environment
 from modules.model import QLearning
 
@@ -51,6 +53,7 @@ class RiskAverseTrain:
             Dynamic_Rho=is_dynamic_rho
         )
 
+        # visualization
         self._f = 100
 
         self._samples_plt = []
@@ -150,13 +153,16 @@ class RiskAverseTrain:
 
     def _plot(self, show_result=False):
         plt.figure(num=1, figsize=(16, 9), dpi=120)
-
+        parser = None
         if not show_result:
             self._mean_rewards_plt.append(torch.mean(torch.tensor(self._rewards_plt[-self._f:], dtype=torch.float32)))
             self._mean_rates_plt.append(torch.mean(torch.tensor(self._rates_plt[-self._f:], dtype=torch.float32)))
             self._mean_td_errors_plt.append(
                 torch.mean(torch.tensor(self._td_errors_plt[-self._f:], dtype=torch.float32)))
             self._mean_rhos_plt.append(torch.mean(torch.tensor(self._rhos_plt[-self._f:], dtype=torch.float32)))
+            plt.clf()
+        else:
+            parser = Parser('dqn', 'res/log/dqn_2024_02_28_21_07_50.log')
             plt.clf()
 
         # Plot reward
@@ -166,8 +172,18 @@ class RiskAverseTrain:
         plt.title('Rewards')
         plt.ylabel('Reward')
 
-        plt.plot(torch.tensor(self._rewards_plt, dtype=torch.float32).numpy())
-        plt.plot(torch.tensor(self._mean_rewards_plt, dtype=torch.float32).numpy())
+        if show_result == False:
+            plt.plot(torch.tensor(self._rewards_plt, dtype=torch.float32).numpy())
+        else:
+            if parser != None:
+                _dqn_mean_rewards_plt = []
+                _dqn_rewards = parser.get_rewards()
+                for i in range(len(_dqn_rewards)):
+                    _dqn_mean_rewards_plt.append(torch.mean(torch.tensor(_dqn_rewards[:i][-self._f:], dtype=torch.float32)))
+                plt.plot(torch.tensor(_dqn_mean_rewards_plt, dtype=torch.float32).numpy(), label='Proposed DQN')
+        plt.plot(torch.tensor(self._mean_rewards_plt, dtype=torch.float32).numpy(), label='Risk Averse')
+        if show_result == True:
+            plt.legend(loc='best')
         # ---------------------------------------------------------------------
 
         # Plot rate
@@ -177,8 +193,18 @@ class RiskAverseTrain:
         plt.title('Rates')
         plt.ylabel('Rate')
 
-        plt.plot(torch.tensor(self._rates_plt, dtype=torch.float32).numpy())
-        plt.plot(torch.tensor(self._mean_rates_plt, dtype=torch.float32).numpy())
+        if show_result == False:
+            plt.plot(torch.tensor(self._rates_plt, dtype=torch.float32).numpy())
+        else:
+            if parser != None:
+                _dqn_mean_rates_plt = []
+                _dqn_rates = parser.get_rates()
+                for i in range(len(_dqn_rates)):
+                    _dqn_mean_rates_plt.append(torch.mean(torch.tensor(_dqn_rates[:i][-self._f:], dtype=torch.float32)))
+                plt.plot(torch.tensor(_dqn_mean_rates_plt, dtype=torch.float32).numpy(), label='Proposed DQN')
+        plt.plot(torch.tensor(self._mean_rates_plt, dtype=torch.float32).numpy(), label='Risk Averse')
+        if show_result == True:
+            plt.legend(loc='best')
         # ---------------------------------------------------------------------
 
         # Plot td error
@@ -200,7 +226,7 @@ class RiskAverseTrain:
         plt.ylabel('Value')
 
         plt.plot(torch.tensor(self._samples_plt, dtype=torch.float32).numpy())
-        plt.plot(torch.tensor(self._eps_plt, dtype=torch.float32).numpy())
+        # plt.plot(torch.tensor(self._eps_plt, dtype=torch.float32).numpy())
         # ---------------------------------------------------------------------
 
         # Plot rho
@@ -216,6 +242,7 @@ class RiskAverseTrain:
 
         plt.tight_layout()
         plt.pause(1 / 1024)
+
         if is_ipython:
             if not show_result:
                 display.display(plt.gcf())
@@ -225,7 +252,6 @@ class RiskAverseTrain:
 
     def start_train(self):
         LogUtils.info('TRAIN_RISK_AVERSE', f'CUDA: {torch.cuda.is_available()}')
-
         for i_episode in range(self._episodes):
             state, _ = self._env.reset()
             state = torch.tensor(state, dtype=torch.float32, device=self._device)
@@ -260,21 +286,21 @@ class RiskAverseTrain:
                 sum_rate += 0 if reward <= 0 else reward
                 sum_rho += Rho
 
-                LogUtils.info(
-                    'TRAIN_EPISODE',
-                    f'({i_episode + 1}): '
-                    f'action: {action}, '
-                    f'observation: {observation}, '
-                    f'action_value: {k}, {P}, {Rho}, '
-                    f'reward: {reward.item()} - {reward_type}, '
-                    f'rho: {Rho}'
-                )
+                # LogUtils.info(
+                #     'TRAIN_EPISODE',
+                #     f'({i_episode + 1}): '
+                #     f'action: {action}, '
+                #     f'observation: {observation}, '
+                #     f'action_value: {k}, {P}, {Rho}, '
+                #     f'reward: {reward.item()} - {reward_type}, '
+                #     f'rho: {Rho}'
+                # )
 
                 if done:
                     break
 
             sum_td_error /= self._env.N
-            sum_rho /= self._env.N
+            sum_rho = round(sum_rho/self._env.N, 2)
 
             LogUtils.info(
                 'TRAIN',

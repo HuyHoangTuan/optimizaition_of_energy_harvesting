@@ -16,8 +16,8 @@ class Environment:
             I = [0.5, 0.5],
             Lambda = 0.1,
             N = 20,
-            Gamma = 0.99,
-            Alpha = 0.003,
+            # Gamma = 0.99,
+            # Alpha = 0.003,
             Eta = 0.9,
             T_s = 1,
             N_0 = 1,
@@ -47,8 +47,8 @@ class Environment:
         self.I = I
         self.Lambda = Lambda
         self.N = N
-        self.Gamma = Gamma
-        self.Alpha = Alpha
+        # self.Gamma = Gamma
+        # self.Alpha = Alpha
         self.Eta = Eta
         self.T_s = T_s
         self.N_0 = N_0

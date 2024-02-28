@@ -66,7 +66,7 @@ class Train:
         self.target_net = DQNModel(n_observations, n_actions).to(self.device)
 
         # if exists('res/check_point/target_model.pth'):
-            # self.policy_net.load_state_dict(torch.load('res/check_point/target_model.pth'))
+            # self.policy_net.load_state_dict(torch.load('res/check_point/dqn/target_model.pth'))
 
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
@@ -118,8 +118,8 @@ class Train:
         if sample > eps_threshold:
             # self.actions.append(1)
             with torch.no_grad():
-                action = torch.argmax(self.policy_net(state), dim = 1)
-                return action
+                # action = torch.argmax(self.policy_net(state), dim = 1).item()
+                return self.policy_net(state).max(1).indices.view(1, 1)
         else:
             # self.actions.append(0)
             return torch.tensor(
@@ -254,7 +254,7 @@ class Train:
         # ---------------------------------------------------------------------
 
         plt.tight_layout()
-        plt.pause(1/320)  # pause a bit so that plots are updated
+        plt.pause(1/1024)  # pause a bit so that plots are updated
         # ---------------------------------------------------------------------
 
         if is_ipython:
@@ -299,7 +299,7 @@ class Train:
         self.optimizer.zero_grad()
         loss.backward()
 
-        # torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 100)
+        torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 100)
         self.optimizer.step()
         self.steps_done += 1
         return loss
@@ -354,21 +354,21 @@ class Train:
                     sum_loss += loss.item()
                     count_loss += 1
 
-                if self.steps_done % 5 == 0:
+                if self.steps_done % 10000 == 0:
                     self.target_net.load_state_dict(self.policy_net.state_dict())
 
 
 
-                LogUtils.info(
-                    'TRAIN_EPISODE',
-                    f'({i_episode + 1}): '
-                    f'action: {action.squeeze(0).item()}, '
-                    f'observation: {observation}, '
-                    f'action_value: {k}, {P}, {Rho}, '
-                    f'reward: {reward.squeeze(0).item()} - {reward_type}, '
-                    f'eps: {self.eps[-1]}, '
-                    f'sample: {self.sample[-1]}, '
-                )
+                # LogUtils.info(
+                #     'TRAIN_EPISODE',
+                #     f'({i_episode + 1}): '
+                #     f'action: {action.squeeze(0).item()}, '
+                #     f'observation: {observation}, '
+                #     f'action_value: {k}, {P}, {Rho}, '
+                #     f'reward: {reward.squeeze(0).item()} - {reward_type}, '
+                #     f'eps: {self.eps[-1]}, '
+                #     f'sample: {self.sample[-1]}, '
+                # )
                 if done:
                     break
 
@@ -376,24 +376,12 @@ class Train:
                 'TRAIN',
                 f'({i_episode + 1}/{self.num_episode}): '
                 f'reward: {sum_reward}, '
-                f'rho: {sum_Rho / self.env.N}, '
-                f'rates: {sum_rate}'
+                f'rates: {sum_rate}, '
+                f'loss: {0 if count_loss <=0 else sum_loss / count_loss}, '
+                f'rho: {sum_Rho / self.env.N}'
             )
 
-            sum_reward_episode += sum_reward
-            if best_reward < sum_reward_episode:
-                best_reward = sum_reward_episode
-                # torch.save(self.target_net.state_dict(), 'res/check_point/policy_model.pth')
-
-                # policy_net_state_dict = self.policy_net.state_dict()
-                # self.target_net.load_state_dict(policy_net_state_dict)
-
-                LogUtils.info('TRAIN', f'SAVE MODEL: best_reward: {best_reward / (i_episode + 1)}')
-
-            if count_loss > 0:
-                self.losses.append(sum_loss / count_loss)
-            else:
-                self.losses.append(0)
+            self.losses.append(0 if count_loss <=0 else sum_loss / count_loss)
 
             self.sum_rates.append(sum_rate)
 
@@ -427,4 +415,4 @@ class Train:
         self.plot_rewards(show_result = True)
         plt.ioff()
         plt.show()
-        torch.save(self.target_net.state_dict(), 'res/check_point/target_model.pth')
+        torch.save(self.target_net.state_dict(), 'res/check_point/dqn/target_model.pth')

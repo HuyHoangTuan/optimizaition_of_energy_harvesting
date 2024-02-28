@@ -41,7 +41,7 @@ if __name__ == '__main__':
                     is_dynamic_rho=is_dynamic_rho
                 )
                 train.start_train()
-            else:
+            elif '-dqn' in args:
                 from modules.train import Train
                 train = Train(
                     num_episode = episodes,
@@ -49,7 +49,8 @@ if __name__ == '__main__':
                     reward_function_id = reward_function_id
                 )
                 train.start_train()
-
+            else:
+                print("Invalid arguments!")
             end_time = time.time()
             LogUtils.info("MAIN", f"Time: {end_time - start_time}")
         except:
