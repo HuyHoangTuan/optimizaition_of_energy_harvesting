@@ -106,13 +106,18 @@ class Environment:
 
         # action spaces
         # Huy's  edition
-        k = [0]
+        k = [0, 1]
         delta_P = 1.0 / 32.0
         P = [i * delta_P for i in range(1, int(0.5 / delta_P) * 2 + 1)]
         delta_Rho = 1.0 / 8.0
-        Rho = [i * delta_Rho for i in range(0, int(1.0 / delta_Rho))]
+        if self.Is_Dynamic_Rho == True:
+            Rho = [i * delta_Rho for i in range(0, int(1.0 / delta_Rho))]
+        else:
+            Rho = [0.4]
+        # todo: remove rho = 0,
         actions_space = np.array(np.meshgrid(k, P, Rho)).T.reshape(-1, 3)
-        actions_space = np.append(actions_space, np.array([[1, 1.0, 0]]), axis = 0)
+        if self.Is_Dynamic_Rho == True:
+            actions_space = np.append(actions_space, np.array([[1, 1.0, 0]]), axis = 0)
         self.actions_space = [tuple(x) for x in actions_space]
         #
         # Cong's edition
@@ -168,14 +173,14 @@ class Environment:
         else:
             return 0  # PU_2
 
-    def _calc_Interference(self, P_p, g_pr, Rho):
-        Interference = 0
-        for i in range(self.NumPU):
-            P_p_dbw = 10 * math.log(P_p[i] * 1000, 10)
-            P_p_dbw = 10 ** (P_p_dbw / 10)
-            Interference += (1 - Rho) * self.T_s * P_p_dbw * g_pr[i]
-
-        return Interference
+    # def _calc_Interference(self, P_p, g_pr, Rho):
+    #     Interference = 0
+    #     for i in range(self.NumPU):
+    #         P_p_dbw = 10 * math.log(P_p[i] * 1000, 10)
+    #         P_p_dbw = 10 ** (P_p_dbw / 10)
+    #         Interference += (1 - Rho) * self.T_s * P_p_dbw * g_pr[i]
+    #
+    #     return Interference
 
     def _calc_E_TS(self, P_p, G_ps, Rho):
         if P_p >= self.Lambda:
@@ -183,12 +188,12 @@ class Environment:
         else:
             return 0
 
-    def _Is_Interference(self, P, g_sp):
-        for i in range(self.NumPU):
-            if P * g_sp[i] > self.I:
-                return False
-
-        return True
+    # def _Is_Interference(self, P, g_sp):
+    #     for i in range(self.NumPU):
+    #         if P * g_sp[i] > self.I:
+    #             return False
+    #
+    #     return True
 
     def _get_record(self, time_slot):
         # record: (k, mu, E, C, P)
@@ -222,6 +227,7 @@ class Environment:
         k = self._get_k(action)
         P = self._get_P(action)
         Rho = self._get_Rho(action)
+        # todo: change mu to
         mu = 1 - Rho
 
         G_s = self.g_s[episode][self._Time_Slot - 1]
