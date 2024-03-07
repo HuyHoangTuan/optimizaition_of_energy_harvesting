@@ -49,6 +49,13 @@ if __name__ == '__main__':
                     reward_function_id = reward_function_id
                 )
                 train.start_train()
+            elif '-ra_dqn' in args:
+                from modules.train import RA_DQNTrain
+                train = RA_DQNTrain(
+                    episodes = episodes,
+                    is_dynamic_rho = is_dynamic_rho
+                )
+                train.start_train()
             else:
                 print("Invalid arguments!")
             end_time = time.time()
@@ -58,5 +65,6 @@ if __name__ == '__main__':
             LogUtils.delete_log()
 
         LogUtils.info("MAIN", "END")
+        LogUtils.delete_log()
 
 

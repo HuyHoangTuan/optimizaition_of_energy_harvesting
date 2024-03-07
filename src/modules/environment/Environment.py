@@ -129,7 +129,7 @@ class Environment:
         # self.actions_space = [tuple(x) for x in actions_space]
 
         RandomUtils.shuffle(self.actions_space)
-        LogUtils.info('ENV', f'ACTIONS_SPACE: {self.get_num_actions()}')
+        LogUtils.info('ENV', f'ACTIONS_SPACE: {self.get_num_actions()}, {self.actions_space}')
 
         # state: (v, E, C, p_p, g_s, g_sp, g_pr, g_ps)
         self._Default_State = (
