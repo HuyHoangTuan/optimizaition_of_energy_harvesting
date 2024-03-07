@@ -109,12 +109,12 @@ class Environment:
         k = [0, 1]
         delta_P = 1.0 / 32.0
         P = [i * delta_P for i in range(1, int(0.5 / delta_P) * 2 + 1)]
-        delta_Rho = 1.0 / 8.0
+
         if self.Is_Dynamic_Rho == True:
+            delta_Rho = 1.0 / 8.0
             Rho = [i * delta_Rho for i in range(0, int(1.0 / delta_Rho))]
         else:
             Rho = [0.4]
-        # todo: remove rho = 0,
         actions_space = np.array(np.meshgrid(k, P, Rho)).T.reshape(-1, 3)
         if self.Is_Dynamic_Rho == True:
             actions_space = np.append(actions_space, np.array([[1, 1.0, 0]]), axis = 0)
@@ -173,27 +173,12 @@ class Environment:
         else:
             return 0  # PU_2
 
-    # def _calc_Interference(self, P_p, g_pr, Rho):
-    #     Interference = 0
-    #     for i in range(self.NumPU):
-    #         P_p_dbw = 10 * math.log(P_p[i] * 1000, 10)
-    #         P_p_dbw = 10 ** (P_p_dbw / 10)
-    #         Interference += (1 - Rho) * self.T_s * P_p_dbw * g_pr[i]
-    #
-    #     return Interference
-
     def _calc_E_TS(self, P_p, G_ps, Rho):
-        if P_p >= self.Lambda:
-            return Rho * self.T_s * P_p * self.Eta * G_ps
-        else:
-            return 0
-
-    # def _Is_Interference(self, P, g_sp):
-    #     for i in range(self.NumPU):
-    #         if P * g_sp[i] > self.I:
-    #             return False
-    #
-    #     return True
+        return Rho * self.T_s * P_p * self.Eta * G_ps
+        # if P_p >= self.Lambda:
+        #     return Rho * self.T_s * P_p * self.Eta * G_ps
+        # else:
+        #     return 0
 
     def _get_record(self, time_slot):
         # record: (k, mu, E, C, P)
@@ -227,8 +212,6 @@ class Environment:
         k = self._get_k(action)
         P = self._get_P(action)
         Rho = self._get_Rho(action)
-        # todo: change mu to
-        mu = 1 - Rho
 
         G_s = self.g_s[episode][self._Time_Slot - 1]
         P_p = (np.array(self._P_p[episode])[:, self._Time_Slot - 1]).tolist()
@@ -236,20 +219,22 @@ class Environment:
         G_sp = (np.array(self.g_sp[episode])[:, self._Time_Slot - 1]).tolist()
         G_ps = (np.array(self.g_ps[episode])[:, self._Time_Slot - 1]).tolist()
 
+        mu = 1 - Rho if P_p[v] >= self.Lambda else 1
+
         # todo: maybe need to multiply Rho into E_ambient, because 1-Rho is the ratio time that agent
         # transmit power, thus, rho ratio time that agent harvest energy
         E_ambient = self._E_ambient[episode][self._Time_Slot - 1]
         E_TS = self._calc_E_TS(P_p[v], G_ps[v], Rho)
         E = E_TS + E_ambient
 
-        C = max(0.0, min(prev_C + prev_E - (1.0 - prev_k) * prev_mu * prev_P * self.T_s, self.C_max))
+        C = max(0.0, min(prev_C + prev_k * prev_E - (1.0 - prev_k) * prev_mu * prev_P * self.T_s, self.C_max))
 
         R = 0
         R_type = 0
         if self.Reward_Function_ID == 0:
             R_type = 0
             R = -self.Phi
-            if k == 0 and mu * P * self.T_s <= C:
+            if k == 0 and P * self.T_s <= C:
                 if P * G_sp[v] <= self.I[v]:
                     P_dbw = self._convert_2_dbW(P)
                     P_p_dbw = self._convert_2_dbW(P_p[v])
@@ -261,7 +246,7 @@ class Environment:
                         R_type = 1
                         R = mu * self.T_s * math.log2(1 + (P_dbw * G_s) / self.N_0)
             else:
-                if k == 1 and mu * P * self.T_s > C:
+                if k == 1 and P * self.T_s > C:
                     R_type = 2
                     R = 0
         elif self.Reward_Function_ID == 1:
