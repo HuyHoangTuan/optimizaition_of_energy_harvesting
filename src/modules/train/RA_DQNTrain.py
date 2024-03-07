@@ -111,6 +111,18 @@ class RA_DQNTrain:
             return torch.tensor(RandomUtils.sample(_, 1), dtype=torch.long, device=self._device)
 
     def _update_Q_Hat(self, H, state):
+        Q = self._Q(H, POLICY)
+        for key, _ in Q.named_parameters():
+            params_stacked = torch.stack([self._Q(idx, POLICY).state_dict()[key] for idx in range(self._num_DQN)], dim=0)
+            params_minus = torch.mean(params_stacked, dim=0)
+
+            std_deviation_squared = torch.div(
+                torch.sum(torch.pow(params_stacked - params_minus, 2), dim=0),
+                self._num_DQN - 1
+            )
+
+            self._Q_hat(0, POLICY).state_dict()[key] = Q.state_dict()[key] - self._lambdaP * std_deviation_squared
+
         # Q_stacked = torch.stack([[] for key in self._Q(idx, POLICY).state_dict() for idx in range(self._num_DQN)])
         # Q_Minus = torch.mean(Q_stacked, dim=0)
         # print(Q_Minus)
@@ -122,11 +134,9 @@ class RA_DQNTrain:
         # )
         #
         # self._Q_hat(0, POLICY)(state)[:] = Q - self._lambdaP * std_deviation_squared
-        pass
 
     def start_train(self):
         LogUtils.info('TRAIN_RISK_AVERSE_DQN', f'CUDA: {torch.cuda.is_available()}')
-        self._update_Q_Hat(0,0)
         # for i_episode in range(self._episodes):
         #     state, _ = self._env.reset()
         #     state = torch.tensor(state, dtype=torch.float32, device=self._device)
