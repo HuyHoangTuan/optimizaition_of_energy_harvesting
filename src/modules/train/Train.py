@@ -14,7 +14,7 @@ from utils import LogUtils, RandomUtils
 
 from modules.environment import Environment
 from modules.model import DQNModel
-from modules.relay import ReplayMemory, Transition
+from modules.replay import ReplayMemory, Transition
 
 is_ipython = 'inline' in matplotlib.get_backend()
 if is_ipython:

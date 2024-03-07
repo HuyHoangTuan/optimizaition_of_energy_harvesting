@@ -173,27 +173,9 @@ class Environment:
         else:
             return 0  # PU_2
 
-    # def _calc_Interference(self, P_p, g_pr, Rho):
-    #     Interference = 0
-    #     for i in range(self.NumPU):
-    #         P_p_dbw = 10 * math.log(P_p[i] * 1000, 10)
-    #         P_p_dbw = 10 ** (P_p_dbw / 10)
-    #         Interference += (1 - Rho) * self.T_s * P_p_dbw * g_pr[i]
-    #
-    #     return Interference
 
     def _calc_E_TS(self, P_p, G_ps, Rho):
-        if P_p >= self.Lambda:
-            return Rho * self.T_s * P_p * self.Eta * G_ps
-        else:
-            return 0
-
-    # def _Is_Interference(self, P, g_sp):
-    #     for i in range(self.NumPU):
-    #         if P * g_sp[i] > self.I:
-    #             return False
-    #
-    #     return True
+        return Rho * self.T_s * P_p * self.Eta * G_ps
 
     def _get_record(self, time_slot):
         # record: (k, mu, E, C, P)
