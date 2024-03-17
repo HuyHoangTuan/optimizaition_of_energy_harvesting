@@ -281,11 +281,13 @@ class RiskAverseTrain:
                 reward = torch.tensor(reward, dtype=torch.float32, device=self._device)
                 td_error = self._optimize_model(state, action, next_state, reward)
 
+                
                 sum_td_error += td_error
                 sum_reward += reward.item()
                 sum_rate += 0 if reward <= 0 else reward
                 sum_rho += Rho
 
+                state = next_state
                 # LogUtils.info(
                 #     'TRAIN_EPISODE',
                 #     f'({i_episode + 1}): '
