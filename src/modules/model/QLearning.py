@@ -29,7 +29,7 @@ class QFunction:
     def get_learning_rate(self, state, action):
         self._check_state(state)
         _zero = torch.zeros(0, dtype=torch.float32, device=self._device)
-        return torch.tensor(1, dtype=torch.float32, device=self._device) if torch.equal(self.N[state][action], _zero) else self.N[state][action]
+        return torch.tensor(1, dtype=torch.float32, device=self._device) if torch.equal(self.N[state][action], _zero) else 1.0/self.N[state][action]
 
     def update_learning_rate(self, state, action):
         self._check_state(state)

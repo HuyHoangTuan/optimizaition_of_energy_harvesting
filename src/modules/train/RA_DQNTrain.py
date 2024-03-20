@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from itertools import count
 from utils import LogUtils
 from utils import RandomUtils
+from utils import Parser
 from modules.environment import Environment
 from modules.model import DQNs
 
@@ -28,8 +29,8 @@ class RA_DQNTrain:
             gamma=0.99,
             batch_size=64,
             beta=-0.5,
-            risk_control_parameter=0.5,
-            is_dynamic_rho=False
+            risk_control_parameter=0.001,
+            is_dynamic_rho=False,
     ):
         self._episodes = episodes
         self._eps_max = eps_max
@@ -65,17 +66,18 @@ class RA_DQNTrain:
         self._rates_plt = []
         self._mean_rates_plt = []
 
-        self._td_errors_plt = []
-        self._mean_td_errors_plt = []
+        self._loss_plt = []
+        self._mean_loss_plt = []
 
         self._rhos_plt = []
         self._mean_rhos_plt = []
 
-        self._num_DQN = 2
+        self._num_DQN = 5
         self._Q = DQNs(
             self._device,
             self._env.get_num_states(),
             self._env.get_num_actions(),
+            self._alpha,
             self._num_DQN
         )
 
@@ -83,6 +85,7 @@ class RA_DQNTrain:
             self._device,
             self._env.get_num_states(),
             self._env.get_num_actions(),
+            self._alpha,
             1
         )
 
@@ -104,9 +107,9 @@ class RA_DQNTrain:
             with torch.no_grad():
                 # print(Q(state))
                 return Q(state).max(1).indices.view(1, 1)
-                return torch.argmax(
-                    Q(state)
-                )
+                # return torch.argmax(
+                #     Q(state)
+                # )
         else:
             _ = [s for s in range(self._env.get_num_actions())]
             return torch.tensor([[RandomUtils.sample(_, 1)[0]]], dtype=torch.long, device=self._device)
@@ -124,12 +127,110 @@ class RA_DQNTrain:
                 )
                 self._Q_hat(0).state_dict()[key] = Q.state_dict()[key] - self._lambdaP * std_deviation_squared
 
+    def _plot(self, show_result=False):
+        plt.figure(num=1, figsize=(16, 9), dpi=120)
+        parser = None
+        if not show_result:
+            self._mean_rewards_plt.append(torch.mean(torch.tensor(self._rewards_plt[-self._f:], dtype=torch.float32)))
+            self._mean_rates_plt.append(torch.mean(torch.tensor(self._rates_plt[-self._f:], dtype=torch.float32)))
+            self._mean_loss_plt.append(
+                torch.mean(torch.tensor(self._loss_plt[-self._f:], dtype=torch.float32)))
+            self._mean_rhos_plt.append(torch.mean(torch.tensor(self._rhos_plt[-self._f:], dtype=torch.float32)))
+            plt.clf()
+        else:
+            parser = Parser('dqn', 'res/log/dqn_2024_02_28_21_07_50.log')
+            plt.clf()
+
+        # Plot reward
+        # ---------------------------------------------------------------------
+        plt.subplot(3, 2, 1)
+
+        plt.title('Rewards')
+        plt.ylabel('Reward')
+
+        if show_result == False:
+            plt.plot(torch.tensor(self._rewards_plt, dtype=torch.float32).numpy())
+        else:
+            if parser != None:
+                _dqn_mean_rewards_plt = []
+                _dqn_rewards = parser.get_rewards()
+                for i in range(len(_dqn_rewards)):
+                    _dqn_mean_rewards_plt.append(torch.mean(torch.tensor(_dqn_rewards[:i][-self._f:], dtype=torch.float32)))
+                plt.plot(torch.tensor(_dqn_mean_rewards_plt, dtype=torch.float32).numpy(), label='Proposed DQN')
+        plt.plot(torch.tensor(self._mean_rewards_plt, dtype=torch.float32).numpy(), label='Risk Averse DQN')
+        if show_result == True:
+            plt.legend(loc='best')
+        # ---------------------------------------------------------------------
+
+        # Plot rate
+        # ---------------------------------------------------------------------
+        plt.subplot(3, 2, 2)
+
+        plt.title('Rates')
+        plt.ylabel('Rate')
+
+        if show_result == False:
+            plt.plot(torch.tensor(self._rates_plt, dtype=torch.float32).numpy())
+        else:
+            if parser != None:
+                _dqn_mean_rates_plt = []
+                _dqn_rates = parser.get_rates()
+                for i in range(len(_dqn_rates)):
+                    _dqn_mean_rates_plt.append(torch.mean(torch.tensor(_dqn_rates[:i][-self._f:], dtype=torch.float32)))
+                plt.plot(torch.tensor(_dqn_mean_rates_plt, dtype=torch.float32).numpy(), label='Proposed DQN')
+        plt.plot(torch.tensor(self._mean_rates_plt, dtype=torch.float32).numpy(), label='Risk Averse DQN')
+        if show_result == True:
+            plt.legend(loc='best')
+        # ---------------------------------------------------------------------
+
+        # Plot td error
+        # ---------------------------------------------------------------------
+        plt.subplot(3, 2, 3)
+
+        plt.title('Loss')
+        plt.ylabel('Value')
+
+        plt.plot(torch.tensor(self._loss_plt, dtype=torch.float32).numpy())
+        plt.plot(torch.tensor(self._mean_loss_plt, dtype=torch.float32).numpy())
+        # ---------------------------------------------------------------------
+
+        # Plot eps
+        # ---------------------------------------------------------------------
+        plt.subplot(3, 2, 4)
+
+        plt.title('Epsilons')
+        plt.ylabel('Value')
+
+        plt.plot(torch.tensor(self._samples_plt, dtype=torch.float32).numpy())
+        # plt.plot(torch.tensor(self._eps_plt, dtype=torch.float32).numpy())
+        # ---------------------------------------------------------------------
+
+        # Plot rho
+        # ---------------------------------------------------------------------
+        plt.subplot(3, 2, 5)
+
+        plt.title('Rhos')
+        plt.ylabel('Value')
+
+        plt.plot(torch.tensor(self._rhos_plt, dtype=torch.float32).numpy())
+        plt.plot(torch.tensor(self._mean_rhos_plt, dtype=torch.float32).numpy())
+        # ---------------------------------------------------------------------
+
+        plt.tight_layout()
+        plt.pause(1 / 1024)
+
+        if is_ipython:
+            if not show_result:
+                display.display(plt.gcf())
+                display.clear_output(wait=True)
+            else:
+                display.display(plt.gcf())
+
     def _optimize_model(self, state, action, next_state, reward):
         self._memory.push(state, action, next_state, reward)
 
         if len(self._memory) < self._batch_size:
             return 0
-        M = RandomUtils.poisson(Lambda=1.0, size=self._num_DQN)
         transitions = self._memory.sample(self._batch_size)
         batch = Transition(*zip(*transitions))
         non_final_mask = torch.tensor(
@@ -146,16 +247,21 @@ class RA_DQNTrain:
         state_batch = torch.cat(batch.state)
         action_batch = torch.cat(batch.action)
         reward_batch = torch.cat(batch.reward)
-        print(self._Q(0)(state_batch))
-        
-        # with torch.no_grad():
-        #     for idx in range(self._num_DQN):
-        #         if M[idx] == 1:
-        #             Q = self._Q(idx)(state_batch).gather(1, action_batch)
-        #             next_Q = torch.zeros(self._batch_size, device=self._device)
-        #             next_Q[non_final_mask] = self._Q(idx)(non_final_next_states).max(1).values
-        #             x0 = -1
-        return 1
+
+        M = RandomUtils.poisson(Lambda=1.0, size=self._num_DQN)
+        loss = 0
+        cnt = 0
+        for idx in range(self._num_DQN):
+            if M[idx] == 1:
+                state_action_values = self._Q(idx)(state_batch).gather(1, action_batch)
+                next_state_values = torch.zeros(self._batch_size, device=self._device)
+                with torch.no_grad():
+                    next_state_values[non_final_mask] = self._Q_hat(0)(non_final_next_states).max(1).values
+
+                expected_state_action_values = (next_state_values * self._gamma) + reward_batch
+                loss = loss + self._Q.loss(idx, state_action_values, expected_state_action_values.unsqueeze(1))
+                cnt += 1
+        return 0 if cnt == 0 else loss / cnt
 
 
     def start_train(self):
@@ -165,7 +271,7 @@ class RA_DQNTrain:
             state = torch.tensor(state, dtype=torch.float32, device=self._device).unsqueeze(0)
         
             sum_reward = 0
-            sum_td_error = 0
+            sum_loss = 0
             sum_rate = 0
             sum_rho = 0
         
@@ -188,15 +294,12 @@ class RA_DQNTrain:
                     next_state = torch.tensor(observation, dtype=torch.float32, device=self._device)
                     next_state = next_state.unsqueeze(0)
                 reward = torch.tensor([reward], dtype=torch.float32, device=self._device)
-                td_error = self._optimize_model(state, action, next_state, reward)
+                loss = self._optimize_model(state, action, next_state, reward)
                 state = next_state
-                if td_error == 1:
-                    print('finish')
-                    return
-                # sum_td_error += td_error
-                # sum_reward += reward.item()
-                # sum_rate += 0 if reward <= 0 else reward
-                # sum_rho += Rho
+                sum_loss += loss
+                sum_reward += reward.item()
+                sum_rate += 0 if reward.item() <= 0 else reward.item()
+                sum_rho += Rho
         
                 # LogUtils.info(
                 #     'TRAIN_EPISODE',
@@ -211,21 +314,25 @@ class RA_DQNTrain:
                 if done:
                     break
         
-            # sum_td_error /= self._env.N
-            # sum_rho = round(sum_rho/self._env.N, 2)
+            sum_loss /= self._env.N
+            sum_rho = round(sum_rho/self._env.N, 2)
         
-            # LogUtils.info(
-            #     'TRAIN',
-            #     f'({i_episode + 1}/{self._episodes}): '
-            #     f'reward: {sum_reward}, '
-            #     f'rate: {sum_rate}, '
-            #     f'td_error: {sum_td_error}, '
-            #     f'rho: {sum_rho}'
-            # )
+            LogUtils.info(
+                'TRAIN',
+                f'({i_episode + 1}/{self._episodes}): '
+                f'reward: {sum_reward}, '
+                f'rate: {sum_rate}, '
+                f'td_error: {sum_loss}, '
+                f'rho: {sum_rho}'
+            )
         
-            # self._rewards_plt.append(sum_reward)
-            # self._rates_plt.append(sum_rate)
-            # self._td_errors_plt.append(sum_td_error)
-            # self._rhos_plt.append(sum_rho)
+            self._rewards_plt.append(sum_reward)
+            self._rates_plt.append(sum_rate)
+            self._loss_plt.append(sum_loss)
+            self._rhos_plt.append(sum_rho)
         
-            # self._plot(show_result=False)
+            self._plot(show_result=False)
+
+        self._plot(show_result=True)
+        plt.ioff()
+        plt.show()

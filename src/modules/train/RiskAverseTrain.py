@@ -77,7 +77,7 @@ class RiskAverseTrain:
         self._init_net()
 
     def _init_net(self):
-        self._num_Q_Functions = 2
+        self._num_Q_Functions = 5
         self._Q = QLearning(
             self._device,
             self._env.get_num_states(),
@@ -129,7 +129,7 @@ class RiskAverseTrain:
                 learning_rate = self._Q(idx).get_learning_rate(state, action)
 
                 TD_Error = self._utility_func(reward + self._gamma * max_Q_Next - Q)
-                value = Q + learning_rate * (TD_Error - x0)
+                value = Q + learning_rate * (TD_Error - (-1))
                 TD_Errors += TD_Error.item()
                 self._Q(idx)(state)[action] = value
                 self._Q(idx).update_learning_rate(state, action)
@@ -279,7 +279,9 @@ class RiskAverseTrain:
                     next_state = torch.tensor(observation, dtype=torch.float32, device=self._device)
 
                 reward = torch.tensor(reward, dtype=torch.float32, device=self._device)
-                td_error = self._optimize_model(state, action, next_state, reward)
+                td_error = 0
+                if next_state is not None:
+                    td_error = self._optimize_model(state, action, next_state, reward)
 
                 
                 sum_td_error += td_error
