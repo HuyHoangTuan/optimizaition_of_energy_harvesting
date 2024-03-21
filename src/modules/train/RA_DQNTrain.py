@@ -263,7 +263,6 @@ class RA_DQNTrain:
                 cnt += 1
         return 0 if cnt == 0 else loss / cnt
 
-
     def start_train(self):
         LogUtils.info('TRAIN_RISK_AVERSE_DQN', f'CUDA: {torch.cuda.is_available()}')
         for i_episode in range(self._episodes):
