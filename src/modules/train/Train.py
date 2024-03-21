@@ -74,7 +74,7 @@ class Train:
         self.optimizer = optim.SGD(self.policy_net.parameters(), lr = self.learning_rate)
         self.memory = ReplayMemory(100000)
 
-        self.eps_threshold = 500 # Episode
+        self.eps_threshold = 500 if self.is_dynamic_rho is False else 400 # Episode
         self.steps_done = 0
         self.eps_drop_rate = 0
         # visualization
@@ -95,9 +95,9 @@ class Train:
         self.losses = []
 
         # plt
-        self.SU_rewards_t = []
+        self.SU_rewards_t = [0]
         self.mean_rhos_t = []
-        self.mean_sum_rates_t = []
+        self.mean_sum_rates_t = [0]
 
     def select_action(self, state, episode = 0):
         sample = RandomUtils.custom_random()
@@ -109,7 +109,7 @@ class Train:
             sample = -1
             self.eps_drop_rate = 0
         else:
-            self.eps_drop_rate += 1
+            self.eps_drop_rate += 1.5
 
         self.eps.append(eps_threshold)
         self.sample.append(sample)

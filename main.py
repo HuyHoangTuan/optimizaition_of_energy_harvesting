@@ -12,7 +12,7 @@ if __name__ == '__main__':
     args = sys.argv[1:]
     is_dynamic_rho = False
     reward_function_id = 0
-    episodes = 1600
+    episodes = 2500
 
     if '-dynamic_rho' in args:
         is_dynamic_rho = True

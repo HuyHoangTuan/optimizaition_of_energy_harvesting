@@ -92,6 +92,12 @@ class Environment:
             for j in range(NumPU):
                 self.g_ps[i].append(RandomUtils.rayleigh(Xi_ps[j], self.N))
 
+        self.g_p = []
+        for i in range(self.Episode):
+            self.g_p.append([])
+            for j in range(NumPU):
+                self.g_p[i].append(RandomUtils.rayleigh(Xi_p[j], self.N))
+
         # P_P: [ [Episode][PU][Time_Slot] ]
         self._P_p = []
         for i in range(self.Episode):
@@ -108,16 +114,16 @@ class Environment:
         # Huy's  edition
         k = [0, 1]
         delta_P = 1.0 / 32.0
-        P = [i * delta_P for i in range(1, int(0.5 / delta_P) * 2 + 1)]
-        delta_Rho = 1.0 / 8.0
+        P = [i * delta_P for i in range(0, int(0.5 / delta_P) * 2 + 1)]
+
         if self.Is_Dynamic_Rho == True:
-            Rho = [i * delta_Rho for i in range(0, int(1.0 / delta_Rho))]
+            delta_Rho = 1.0 / 8.0
+            Rho = [i * delta_Rho for i in range(1, int(1.0 / delta_Rho))]
         else:
             Rho = [0.4]
-        # todo: remove rho = 0,
         actions_space = np.array(np.meshgrid(k, P, Rho)).T.reshape(-1, 3)
-        if self.Is_Dynamic_Rho == True:
-            actions_space = np.append(actions_space, np.array([[1, 1.0, 0]]), axis = 0)
+        # if self.Is_Dynamic_Rho == True:
+        #     actions_space = np.append(actions_space, np.array([[1, 1.0, 0]]), axis = 0)
         self.actions_space = [tuple(x) for x in actions_space]
         #
         # Cong's edition
@@ -189,9 +195,12 @@ class Environment:
         self.records.append(record)
 
     def _convert_2_dbW(self, PW):
-        P_dbw = 10 * math.log(PW * 1000, 10)
-        P_dbw = 10 ** (P_dbw / 10)
-        return P_dbw
+        if PW == 0:
+            return 0
+        else:
+            P_dbw = 10 * math.log(PW * 1000, 10)
+            P_dbw = 10 ** (P_dbw / 10)
+            return P_dbw
 
     def reset(self):
         self.records = []
