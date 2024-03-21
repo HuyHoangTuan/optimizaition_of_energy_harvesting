@@ -92,6 +92,12 @@ class Environment:
             for j in range(NumPU):
                 self.g_ps[i].append(RandomUtils.rayleigh(Xi_ps[j], self.N))
 
+        self.g_p = []
+        for i in range(self.Episode):
+            self.g_p.append([])
+            for j in range(NumPU):
+                self.g_p[i].append(RandomUtils.rayleigh(Xi_p[j], self.N))
+
         # P_P: [ [Episode][PU][Time_Slot] ]
         self._P_p = []
         for i in range(self.Episode):
@@ -131,12 +137,12 @@ class Environment:
         RandomUtils.shuffle(self.actions_space)
         LogUtils.info('ENV', f'ACTIONS_SPACE: {self.get_num_actions()}, {self.actions_space}')
 
-        # state: (v, E, C, p_p, g_s, g_sp, g_pr, g_ps)
+        # state: (v, E, C, g_s, g_pr1, g_sp, g_p, g_ps)
         self._Default_State = (
             0,
             0,
             0,
-            *tuple([0 for i in range(NumPU)]),
+            0,
             0,
             *tuple([0 for i in range(NumPU)]),
             *tuple([0 for i in range(NumPU)]),
@@ -218,7 +224,7 @@ class Environment:
         G_pr = (np.array(self.g_pr[episode])[:, self._Time_Slot - 1]).tolist()
         G_sp = (np.array(self.g_sp[episode])[:, self._Time_Slot - 1]).tolist()
         G_ps = (np.array(self.g_ps[episode])[:, self._Time_Slot - 1]).tolist()
-
+        G_p = (np.array(self.g_p[episode])[:, self._Time_Slot - 1]).tolist()
         mu = 1 - Rho if P_p[v] >= self.Lambda else 1
 
         # todo: maybe need to multiply Rho into E_ambient, because 1-Rho is the ratio time that agent
@@ -271,11 +277,11 @@ class Environment:
             v,
             prev_E,
             C,
-            *tuple(P_p),
             G_s,
+            G_pr[1],
             *tuple(G_sp),
-            *tuple(G_pr),
-            *tuple(G_ps)
+            *tuple(G_ps),
+            *tuple(G_p)
         )
 
         action = (
