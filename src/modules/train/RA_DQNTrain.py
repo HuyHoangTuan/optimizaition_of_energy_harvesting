@@ -27,8 +27,8 @@ class RA_DQNTrain:
             eps_decay=0.001,
             alpha=0.003,
             gamma=0.99,
+            beta = -0.5,
             batch_size=64,
-            beta=-0.5,
             risk_control_parameter=0.001,
             is_dynamic_rho=False,
     ):
@@ -37,11 +37,12 @@ class RA_DQNTrain:
         self._eps_min = eps_min
         self._eps_decay = eps_decay
         self._eps_drop_rate = 0.0
+        self._beta = beta
         self._eps_threshold = 500
         self._lambdaP = risk_control_parameter
         self._alpha = alpha
-        self._beta = beta
         self._gamma = gamma
+        self._is_dynamic_rho = is_dynamic_rho
         self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self._batch_size = batch_size
 
@@ -213,7 +214,8 @@ class RA_DQNTrain:
         plt.ylabel('Value')
 
         plt.plot(torch.tensor(self._rhos_plt, dtype=torch.float32).numpy())
-        plt.plot(torch.tensor(self._mean_rhos_plt, dtype=torch.float32).numpy())
+        if self._is_dynamic_rho is True:
+            plt.plot(torch.tensor(self._mean_rhos_plt, dtype=torch.float32).numpy())
         # ---------------------------------------------------------------------
 
         plt.tight_layout()
@@ -225,6 +227,9 @@ class RA_DQNTrain:
                 display.clear_output(wait=True)
             else:
                 display.display(plt.gcf())
+
+    def _utility_function(self, value):
+        return -1.0 * torch.exp(self._beta * value)
 
     def _optimize_model(self, state, action, next_state, reward):
         self._memory.push(state, action, next_state, reward)
@@ -258,8 +263,10 @@ class RA_DQNTrain:
                 with torch.no_grad():
                     next_state_values[non_final_mask] = self._Q_hat(0)(non_final_next_states).max(1).values
 
-                expected_state_action_values = (next_state_values * self._gamma) + reward_batch
-                loss = loss + self._Q.loss(idx, state_action_values, expected_state_action_values.unsqueeze(1))
+                expected_state_action_values = state_action_values + (self._utility_function(
+                        reward_batch + next_state_values.unsqueeze(1) * self._gamma - state_action_values
+                ) + 1.0)
+                loss = loss + self._Q.loss(idx, state_action_values, expected_state_action_values)
                 cnt += 1
         return 0 if cnt == 0 else loss / cnt
 
