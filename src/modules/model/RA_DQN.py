@@ -1,4 +1,4 @@
-from modules.model import DQNModel
+from src.modules.model import DQNModel
 import torch.optim as optim
 from torch import nn, Tensor
 import torch

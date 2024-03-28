@@ -8,12 +8,12 @@ import matplotlib
 import matplotlib.pyplot as plt
 from itertools import count
 
-from utils import LogUtils
-from utils import RandomUtils
-from utils import Parser
+from src.utils import LogUtils
+from src.utils import RandomUtils
+from src.utils import Parser
 
-from modules.environment import Environment
-from modules.model import QLearning
+from src.modules.environment import Environment
+from src.modules.model import QLearning
 
 is_ipython = 'inline' in matplotlib.get_backend()
 if is_ipython:

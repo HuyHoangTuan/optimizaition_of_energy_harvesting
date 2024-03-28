@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
-sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
+sys.path.insert(0, "./src")
 
 if __name__ == '__main__':
 
@@ -24,7 +24,7 @@ if __name__ == '__main__':
         episodes = int(args[args.index('-episodes') + 1])
 
     if '-p_and_rho' in args:
-        from modules.analysis import PAndRhoAnalysis
+        from src.modules.analysis import PAndRhoAnalysis
         path = args[args.index('-p_and_rho') + 1]
         PAndRhoAnalysis.plot(path)
 
@@ -35,14 +35,14 @@ if __name__ == '__main__':
         try:
             start_time = time.time()
             if '-ra' in args:
-                from modules.train import RiskAverseTrain
+                from src.modules.train import RiskAverseTrain
                 train = RiskAverseTrain(
                     episodes=episodes,
                     is_dynamic_rho=is_dynamic_rho
                 )
                 train.start_train()
             elif '-dqn' in args:
-                from modules.train import Train
+                from src.modules.train import Train
                 train = Train(
                     num_episode = episodes,
                     is_dynamic_rho = is_dynamic_rho,
@@ -50,7 +50,7 @@ if __name__ == '__main__':
                 )
                 train.start_train()
             elif '-ra_dqn' in args:
-                from modules.train import RA_DQNTrain
+                from src.modules.train import RA_DQNTrain
                 train = RA_DQNTrain(
                     episodes = episodes,
                     is_dynamic_rho = is_dynamic_rho

@@ -3,11 +3,11 @@ import torch
 import matplotlib
 import matplotlib.pyplot as plt
 from itertools import count
-from utils import LogUtils
-from utils import RandomUtils
-from utils import Parser
-from modules.environment import Environment
-from modules.model import DQNs
+from src.utils import LogUtils
+from src.utils import RandomUtils
+from src.utils import Parser
+from src.modules.environment import Environment
+from src.modules.model import DQNs
 
 from src.modules.replay import ReplayMemory, Transition
 

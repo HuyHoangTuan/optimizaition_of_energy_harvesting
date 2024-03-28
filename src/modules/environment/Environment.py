@@ -1,7 +1,7 @@
 import math
 
 import numpy as np
-from utils import LogUtils, RandomUtils
+from src.utils import LogUtils, RandomUtils
 
 class Environment:
     def __init__(
