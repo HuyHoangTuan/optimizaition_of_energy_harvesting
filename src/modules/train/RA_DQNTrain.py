@@ -263,9 +263,11 @@ class RA_DQNTrain:
                 with torch.no_grad():
                     next_state_values[non_final_mask] = self._Q_hat(0)(non_final_next_states).max(1).values
 
-                expected_state_action_values = state_action_values + (self._utility_function(
-                        reward_batch + next_state_values.unsqueeze(1) * self._gamma - state_action_values
-                ) + 1.0)
+                _learning_rate = self._Q.get_learning_rate(idx, state_batch, action_batch)
+                expected_state_action_values = (
+                        state_action_values + _learning_rate * (self._utility_function(
+                            (reward_batch + next_state_values * self._gamma).unsqueeze(1) - state_action_values
+                        ) + 1.0))
                 loss = loss + self._Q.loss(idx, state_action_values, expected_state_action_values)
                 cnt += 1
         return 0 if cnt == 0 else loss / cnt
@@ -275,27 +277,27 @@ class RA_DQNTrain:
         for i_episode in range(self._episodes):
             state, _ = self._env.reset()
             state = torch.tensor(state, dtype=torch.float32, device=self._device).unsqueeze(0)
-        
+
             sum_reward = 0
             sum_loss = 0
             sum_rate = 0
             sum_rho = 0
-        
+
             for t in count():
                 # update Q Hat
                 H = math.floor(RandomUtils.custom_random() * self._num_DQN)
                 self._update_Q_Hat(H, state)
-        
+
                 # select action according to Q Hat
                 action = self._select_action(self._Q_hat(0), state, i_episode)
                 # print(action)
                 # action = action.item()
-        
+
                 # update Q Function
                 observation, (k, P, Rho), (reward, reward_type), time_slot = self._env.step(action, i_episode)
                 done = True if time_slot >= self._env.N else False
                 next_state = None
-        
+
                 if done is not True:
                     next_state = torch.tensor(observation, dtype=torch.float32, device=self._device)
                     next_state = next_state.unsqueeze(0)
@@ -306,7 +308,7 @@ class RA_DQNTrain:
                 sum_reward += reward.item()
                 sum_rate += 0 if reward.item() <= 0 else reward.item()
                 sum_rho += Rho
-        
+
                 # LogUtils.info(
                 #     'TRAIN_EPISODE',
                 #     f'({i_episode + 1}): '
@@ -316,13 +318,13 @@ class RA_DQNTrain:
                 #     f'reward: {reward.item()} - {reward_type}, '
                 #     f'rho: {Rho}'
                 # )
-        
+
                 if done:
                     break
-        
+
             sum_loss /= self._env.N
             sum_rho = round(sum_rho/self._env.N, 2)
-        
+
             LogUtils.info(
                 'TRAIN',
                 f'({i_episode + 1}/{self._episodes}): '
@@ -331,12 +333,12 @@ class RA_DQNTrain:
                 f'td_error: {sum_loss}, '
                 f'rho: {sum_rho}'
             )
-        
+
             self._rewards_plt.append(sum_reward)
             self._rates_plt.append(sum_rate)
             self._loss_plt.append(sum_loss)
             self._rhos_plt.append(sum_rho)
-        
+
             self._plot(show_result=False)
 
         self._plot(show_result=True)

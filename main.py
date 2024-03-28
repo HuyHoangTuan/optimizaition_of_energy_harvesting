@@ -60,11 +60,12 @@ if __name__ == '__main__':
                 print("Invalid arguments!")
             end_time = time.time()
             LogUtils.info("MAIN", f"Time: {end_time - start_time}")
+            LogUtils.info("MAIN", "END")
+            LogUtils.delete_log()
         except:
             print("Unexpected error:", sys.exc_info())
             LogUtils.delete_log()
 
-        LogUtils.info("MAIN", "END")
-        LogUtils.delete_log()
+
 
 
