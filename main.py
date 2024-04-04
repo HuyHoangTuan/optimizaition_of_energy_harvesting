@@ -30,9 +30,9 @@ if __name__ == '__main__':
 
     else:
         from utils import LogUtils
-        LogUtils.info("MAIN", "START")
         import time
         try:
+            LogUtils.info("MAIN", "START")
             start_time = time.time()
             if '-ra' in args:
                 from src.modules.train import RiskAverseTrain

@@ -265,9 +265,17 @@ class RA_DQNTrain:
 
                 _learning_rate = self._Q.get_learning_rate(idx, state_batch, action_batch)
                 expected_state_action_values = (
-                        state_action_values + _learning_rate * (self._utility_function(
-                            (reward_batch + next_state_values * self._gamma).unsqueeze(1) - state_action_values
-                        ) + 1.0))
+                        state_action_values + _learning_rate * (
+                            self._utility_function(
+                                (
+                                    reward_batch.unsqueeze(1)
+                                    + next_state_values.unsqueeze(1) * self._gamma
+                                    - state_action_values
+                                )
+                            )
+                            + 1.0
+                        )
+                )
                 loss = loss + self._Q.loss(idx, state_action_values, expected_state_action_values)
                 cnt += 1
         return 0 if cnt == 0 else loss / cnt
@@ -330,7 +338,7 @@ class RA_DQNTrain:
                 f'({i_episode + 1}/{self._episodes}): '
                 f'reward: {sum_reward}, '
                 f'rate: {sum_rate}, '
-                f'td_error: {sum_loss}, '
+                f'loss: {sum_loss}, '
                 f'rho: {sum_rho}'
             )
 
