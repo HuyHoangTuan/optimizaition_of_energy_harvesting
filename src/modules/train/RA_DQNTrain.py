@@ -8,7 +8,7 @@ from src.utils import RandomUtils
 from src.utils import Parser
 from src.modules.environment import Environment
 from src.modules.model import DQNs
-
+from torch import nn
 from src.modules.replay import ReplayMemory, Transition
 
 is_ipython = 'inline' in matplotlib.get_backend()
@@ -27,9 +27,9 @@ class RA_DQNTrain:
             eps_decay=0.001,
             alpha=0.003,
             gamma=0.99,
-            beta = -0.5,
+            beta = -1,
             batch_size=64,
-            risk_control_parameter=0.001,
+            risk_control_parameter=0.1,
             is_dynamic_rho=False,
     ):
         self._episodes = episodes
@@ -115,24 +115,24 @@ class RA_DQNTrain:
             _ = [s for s in range(self._env.get_num_actions())]
             return torch.tensor([[RandomUtils.sample(_, 1)[0]]], dtype=torch.long, device=self._device)
 
-    with torch.no_grad():
-        def _update_Q_Hat(self, H, state):
-            Q = self._Q(H)
-            updated_params = {}  # Initialize a dictionary to hold updated parameters
+    def _update_Q_Hat(self, H, state):
+        Q = self._Q(H)
+        updated_params = {}  # Initialize a dictionary to hold updated parameters
 
-            for key, _ in Q.named_parameters():
-                params_stacked = torch.stack([self._Q(idx).state_dict()[key] for idx in range(self._num_DQN)], dim=0)
-                params_mean = torch.mean(params_stacked, dim=0)
+        for key, _ in Q.named_parameters():
+            params_stacked = torch.stack([self._Q(idx).state_dict()[key] for idx in range(self._num_DQN)], dim=0)
+            params_mean = torch.mean(params_stacked, dim=0)
 
-                std_deviation_squared = torch.div(
-                    torch.sum(torch.pow(params_stacked - params_mean.unsqueeze(0), 2), dim=0),
-                    self._num_DQN - 1
-                )
-                # Apply the update rule to compute the new parameter value
-                updated_params[key] = Q.state_dict()[key] - self._lambdaP * std_deviation_squared
+            std_deviation_squared = torch.div(
+                torch.sum(torch.pow(params_stacked - params_mean.unsqueeze(0), 2), dim=0),
+                self._num_DQN - 1
+            )
+            # Apply the update rule to compute the new parameter value
+            updated_params[key] = Q.state_dict()[key] - self._lambdaP * std_deviation_squared
 
-            # Use load_state_dict to apply the updated parameters to Q_hat
-            self._Q_hat(0).load_state_dict(updated_params)
+        # Use load_state_dict to apply the updated parameters to Q_hat
+        self._Q_hat(0).load_state_dict(updated_params)
+
 
     def _plot(self, show_result=False):
         plt.figure(num=1, figsize=(16, 9), dpi=120)
@@ -267,11 +267,11 @@ class RA_DQNTrain:
                 state_action_values = self._Q(idx)(state_batch).gather(1, action_batch)
                 next_state_values = torch.zeros(self._batch_size, device=self._device)
                 with torch.no_grad():
-                    next_state_values[non_final_mask] = self._Q_hat(0)(non_final_next_states).max(1).values
+                    next_state_values[non_final_mask] = self._Q(idx)(non_final_next_states).max(1).values
 
                 _learning_rate = self._Q.get_learning_rate(idx, state_batch, action_batch)
                 expected_state_action_values = (
-                        state_action_values + _learning_rate * (
+                        state_action_values + (
                             self._utility_function(
                                 (
                                     reward_batch.unsqueeze(1)
@@ -282,7 +282,8 @@ class RA_DQNTrain:
                             + 1.0
                         )
                 )
-                loss = loss + self._Q.loss(idx, state_action_values, expected_state_action_values)
+                _loss = self._Q.loss(idx, state_action_values, expected_state_action_values)
+                loss = loss + _loss
                 cnt += 1
         return 0 if cnt == 0 else loss / cnt
 
