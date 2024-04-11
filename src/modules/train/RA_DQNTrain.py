@@ -118,15 +118,21 @@ class RA_DQNTrain:
     with torch.no_grad():
         def _update_Q_Hat(self, H, state):
             Q = self._Q(H)
+            updated_params = {}  # Initialize a dictionary to hold updated parameters
+
             for key, _ in Q.named_parameters():
                 params_stacked = torch.stack([self._Q(idx).state_dict()[key] for idx in range(self._num_DQN)], dim=0)
-                params_minus = torch.mean(params_stacked, dim=0)
+                params_mean = torch.mean(params_stacked, dim=0)
 
                 std_deviation_squared = torch.div(
-                    torch.sum(torch.pow(params_stacked - params_minus, 2), dim=0),
+                    torch.sum(torch.pow(params_stacked - params_mean.unsqueeze(0), 2), dim=0),
                     self._num_DQN - 1
                 )
-                self._Q_hat(0).state_dict()[key] = Q.state_dict()[key] - self._lambdaP * std_deviation_squared
+                # Apply the update rule to compute the new parameter value
+                updated_params[key] = Q.state_dict()[key] - self._lambdaP * std_deviation_squared
+
+            # Use load_state_dict to apply the updated parameters to Q_hat
+            self._Q_hat(0).load_state_dict(updated_params)
 
     def _plot(self, show_result=False):
         plt.figure(num=1, figsize=(16, 9), dpi=120)
