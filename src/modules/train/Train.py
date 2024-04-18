@@ -98,6 +98,7 @@ class Train:
         self.SU_rewards_t = [0]
         self.mean_rhos_t = []
         self.mean_sum_rates_t = [0]
+        self.mean_loss_t = [0]
 
     def select_action(self, state, episode = 0):
         sample = RandomUtils.custom_random()
@@ -320,20 +321,12 @@ class Train:
             sum_loss = 0
             count_loss = 0
 
-            r_0_type = [0, 0]
-            r_1_type = [0, 0]
-            r_2_type = [0, 0]
             for t in count():
                 action = self.select_action(state, i_episode)
-                observation, (k, P, Rho), (reward, reward_type), time_slot = self.env.step(action.item(), i_episode)
+                observation, (k, P, Rho), (reward, _), time_slot = self.env.step(action.item(), i_episode)
                 reward = torch.tensor([reward], dtype = torch.float32, device = self.device)
-
-                v = observation[0]
-                r_0_type[v] += 1 if reward_type == 0 else 0
-                r_1_type[v] += 1 if reward_type == 1 else 0
-                sum_rate += reward.squeeze(0).item() if reward_type == 1 else 0
-                r_2_type[v] += 1 if reward_type == 2 else 0
-
+                print(observation)
+                sum_rate += reward.squeeze(0).item() if reward.squeeze(0).item() > 0 else 0
                 sum_reward += reward.squeeze(0).item()
                 sum_Rho += Rho
 
@@ -407,10 +400,6 @@ class Train:
             self.mean_rhos.append(sum_Rho / self.env.N)
             if len(self.mean_rhos) > self.num_to_get_mean:
                 self.mean_rhos = self.mean_rhos[1:]
-
-            self.R_0_types.append(np.array(r_0_type))
-            self.R_1_types.append(np.array(r_1_type))
-            self.R_2_types.append(np.array(r_2_type))
 
             self.plot_rewards()
 
