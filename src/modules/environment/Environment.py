@@ -1,34 +1,36 @@
 import math
-
+from itertools import chain
 import numpy as np
 from utils import LogUtils, RandomUtils
+
 
 class Environment:
     def __init__(
             self,
-            NumPU = 2,
-            P_max = 1,
-            Xi_s = 0.1,
-            Xi_pr = [0.1, 0.1],
-            Xi_ps = [0.1, 0.1],
-            Xi_p = [0.1, 0.1],
-            Xi_sp = [0.1, 0.1],
-            I = [0.5, 0.5],
-            Lambda = 0.1,
-            N = 20,
+            NumSU=8,
+            NumPU=2,
+            P_max=1,
+            Xi_s=0.1,
+            Xi_pr=[0.1, 0.1],
+            Xi_ps=[0.1, 0.1],
+            Xi_p=[0.1, 0.1],
+            Xi_sp=[0.1, 0.1],
+            I=[0.5, 0.5],
+            Lambda=0.1,
+            N=20,
             # Gamma = 0.99,
             # Alpha = 0.003,
-            Eta = 0.9,
-            T_s = 1,
-            N_0 = 1,
-            E_max = 0.2,
-            Phi = 1,
-            Rho = 0.4,
-            A = 10,
-            C_max = 0.5,
-            Episode = 1400,
-            Dynamic_Rho = False,
-            reward_function_id = 0
+            Eta=0.9,
+            T_s=1,
+            N_0=1,
+            E_max=0.2,
+            Phi=1,
+            Rho=0.4,
+            A=10,
+            C_max=0.5,
+            Episode=1400,
+            Dynamic_Rho=False,
+            reward_function_id=0
     ):
         # SU-Tx ~ Agent
         # reward ~ instantaneous achievable rate
@@ -42,6 +44,7 @@ class Environment:
         LogUtils.info('ENV', 'Started init Environment')
 
         self.Reward_Function_ID = reward_function_id
+        self.NumSU = NumSU
         self.NumPU = NumPU
         self.P_max = P_max
         self.I = I
@@ -62,48 +65,59 @@ class Environment:
 
         # init
 
-        # g_s: [ [Episode][Time_Slot] ]
+        # g_s: [ [Episode][SU][Time_Slot] ]
         # The channel gain power between SU-TX and SU-RX
         self.g_s = []
         for i in range(self.Episode):
-            self.g_s.append(RandomUtils.rayleigh(Xi_s, self.N))
+            self.g_s.append([])
+            for j in range(self.NumSU):
+                self.g_s[i].append(RandomUtils.rayleigh(Xi_s, self.N))
 
-        # g_pr: [ [Episode][PU][Time_Slot] ]
+        # g_pr: [ [Episode][SU][PU][Time_Slot] ]
         # The channel power gain between PU and SU-RX
         self.g_pr = []
         for i in range(self.Episode):
             self.g_pr.append([])
-            for j in range(NumPU):
-                self.g_pr[i].append(RandomUtils.rayleigh(Xi_pr[j], self.N))
+            for j in range(self.NumSU):
+                self.g_pr[i].append([])
+                for z in range(self.NumPU):
+                    self.g_pr[i][j].append(RandomUtils.rayleigh(Xi_pr[z], self.N))
 
-        # g_sp: [ [Episode][PU][Time_Slot] ]
+        # g_sp: [ [Episode][SU][PU][Time_Slot] ]
         # The channel power gain between SU-TX and PU-RX
         self.g_sp = []
         for i in range(self.Episode):
             self.g_sp.append([])
-            for j in range(NumPU):
-                self.g_sp[i].append(RandomUtils.rayleigh(Xi_sp[j], self.N))
+            for j in range(self.NumSU):
+                self.g_sp[i].append([])
+                for z in range(self.NumPU):
+                    self.g_sp[i][j].append(RandomUtils.rayleigh(Xi_sp[z], self.N))
 
-        # g_ps: [ [Episode][PU][Time_slot] ]
+        # g_ps: [ [Episode][SU][PU][Time_slot] ]
         # The channel power gain between PU and SU-TX
         self.g_ps = []
         for i in range(self.Episode):
             self.g_ps.append([])
-            for j in range(NumPU):
-                self.g_ps[i].append(RandomUtils.rayleigh(Xi_ps[j], self.N))
+            for j in range(self.NumSU):
+                self.g_ps[i].append([])
+                for z in range(self.NumPU):
+                    self.g_ps[i][j].append(RandomUtils.rayleigh(Xi_ps[z], self.N))
 
+        # g_p: [ [Episode][PU][Time_Slot] ]
         self.g_p = []
         for i in range(self.Episode):
             self.g_p.append([])
             for j in range(NumPU):
                 self.g_p[i].append(RandomUtils.rayleigh(Xi_p[j], self.N))
 
-        # P_P: [ [Episode][PU][Time_Slot] ]
+        # P_P: [ [Episode][SU][PU][Time_Slot] ]
         self._P_p = []
         for i in range(self.Episode):
             self._P_p.append([])
-            for j in range(0, NumPU):
-                self._P_p[i].append(RandomUtils.uniform(0, self.P_max, self.N))
+            for j in range(0, self.NumSU):
+                self._P_p[i].append([])
+                for z in range(0, self.NumPU):
+                    self._P_p[i][j].append(RandomUtils.uniform(0, self.P_max, self.N))
 
         # E_ambient: [ [Episode][Time_Slot] ]
         self._E_ambient = []
@@ -138,19 +152,31 @@ class Environment:
         LogUtils.info('ENV', f'ACTIONS_SPACE: {self.get_num_actions()}')
 
         # state: (v, E, C, p_p, g_s, g_sp, g_pr, g_ps)
-        self._Default_State = (
-            0,
-            0,
-            0,
-            *tuple([0 for i in range(NumPU)]),
-            0,
-            *tuple([0 for i in range(NumPU)]),
-            *tuple([0 for i in range(NumPU)]),
-            *tuple([0 for i in range(NumPU)])
+        self._Default_State = tuple(
+            chain(
+                *tuple(
+                    [
+                        (
+                            0,
+                            0,
+                            0,
+                            *tuple([0 for i in range(NumPU)]),
+                            0,
+                            *tuple([0 for i in range(NumPU)]),
+                            *tuple([0 for i in range(NumPU)]),
+                            *tuple([0 for i in range(NumPU)])
+                        )
+                        for j in range(self.NumSU)
+                    ]
+                )
+            )
         )
+
         # records: (k, mu, E, C, P, g_s)
         self._Default_Record = (0, 0, 0, 0, 0, 0)
         self.records = []
+        for i in range(self.NumSU):
+            self.records.append([])
 
         # time slot
         self._Time_Slot = 0
@@ -179,20 +205,19 @@ class Environment:
         else:
             return 0  # PU_2
 
-
     def _calc_E_TS(self, P_p, G_ps, Rho):
         return Rho * self.T_s * P_p * self.Eta * G_ps
 
-    def _get_record(self, time_slot):
+    def _get_record(self, SU, time_slot):
         # record: (k, mu, E, C, P)
 
-        if time_slot <= 0 or time_slot > len(self.records):
+        if time_slot <= 0 or time_slot > len(self.records[SU]):
             return self._Default_Record
         else:
-            return self.records[time_slot - 1]
+            return self.records[SU][time_slot - 1]
 
-    def _add_record(self, record):
-        self.records.append(record)
+    def _add_record(self, SU, record):
+        self.records[SU].append(record)
 
     def _convert_2_dbW(self, PW):
         if PW == 0:
@@ -204,6 +229,8 @@ class Environment:
 
     def reset(self):
         self.records = []
+        for i in range(self.NumSU):
+            self.records.append([])
         self._Time_Slot = 0
 
         return self._Default_State, None
@@ -211,78 +238,85 @@ class Environment:
     def step(self, action, episode):
         # LogUtils.info('Environment', f'action: {action}, time_slot: {self.TimeSlot}')
         # return: state, action, reward, time_slot
-        prev_k, prev_mu, prev_E, prev_C, prev_P, prev_G_s = self._get_record(self._Time_Slot)
+
+        states = []
+        Rs = 0
 
         self._Time_Slot += 1
         v = self._get_v(self._Time_Slot)
         k = self._get_k(action)
         P = self._get_P(action)
         Rho = self._get_Rho(action)
-        # todo: change mu to
-        mu = 1 - Rho
+        for SU in range(self.NumSU):
+            prev_k, prev_mu, prev_E, prev_C, prev_P, prev_G_s = self._get_record(SU, self._Time_Slot - 1)
+            # todo: change mu to
+            mu = 1 - Rho
 
-        G_s = self.g_s[episode][self._Time_Slot - 1]
-        P_p = (np.array(self._P_p[episode])[:, self._Time_Slot - 1]).tolist()
-        G_pr = (np.array(self.g_pr[episode])[:, self._Time_Slot - 1]).tolist()
-        G_sp = (np.array(self.g_sp[episode])[:, self._Time_Slot - 1]).tolist()
-        G_ps = (np.array(self.g_ps[episode])[:, self._Time_Slot - 1]).tolist()
+            G_s = self.g_s[episode][SU][self._Time_Slot - 1]
+            P_p = (np.array(self._P_p[episode][SU])[:, self._Time_Slot - 1]).tolist()
+            G_pr = (np.array(self.g_pr[episode][SU])[:, self._Time_Slot - 1]).tolist()
+            G_sp = (np.array(self.g_sp[episode][SU])[:, self._Time_Slot - 1]).tolist()
+            G_ps = (np.array(self.g_ps[episode][SU])[:, self._Time_Slot - 1]).tolist()
+            G_p = (np.array(self.g_p[episode])[:, self._Time_Slot - 1]).tolist()
 
-        # todo: maybe need to multiply Rho into E_ambient, because 1-Rho is the ratio time that agent
-        # transmit power, thus, rho ratio time that agent harvest energy
-        E_ambient = self._E_ambient[episode][self._Time_Slot - 1]
-        E_TS = self._calc_E_TS(P_p[v], G_ps[v], Rho)
-        E = E_TS + E_ambient
+            # todo: maybe need to multiply Rho into E_ambient, because 1-Rho is the ratio time that agent
+            # transmit power, thus, rho ratio time that agent harvest energy
+            E_ambient = self._E_ambient[episode][self._Time_Slot - 1]
+            E_TS = self._calc_E_TS(P_p[v], G_ps[v], Rho)
+            E = E_TS + E_ambient
 
-        C = max(0.0, min(prev_C + prev_E - (1.0 - prev_k) * prev_mu * prev_P * self.T_s, self.C_max))
+            C = max(0.0, min(prev_C + prev_E - (1.0 - prev_k) * prev_mu * prev_P * self.T_s, self.C_max))
 
-        R = 0
-        R_type = 0
-        if self.Reward_Function_ID == 0:
-            R_type = 0
-            R = -self.Phi
-            if k == 0 and mu * P * self.T_s <= C:
-                if P * G_sp[v] <= self.I[v]:
-                    P_dbw = self._convert_2_dbW(P)
-                    P_p_dbw = self._convert_2_dbW(P_p[v])
+            R = 0
+            if self.Reward_Function_ID == 0:
+                R = -self.Phi
+                if k == 0 and mu * P * self.T_s <= C:
+                    if P * G_sp[v] <= self.I[v]:
+                        P_dbw = self._convert_2_dbW(P)
+                        P_p_dbw = self._convert_2_dbW(P_p[v])
 
-                    if v == 1:
-                        R_type = 1
-                        R = mu * self.T_s * math.log2(1 + (P_dbw * G_s) / (self.N_0 + P_p_dbw * G_pr[v]))
-                    else:
-                        R_type = 1
-                        R = mu * self.T_s * math.log2(1 + (P_dbw * G_s) / self.N_0)
-            else:
-                if k == 1 and mu * P * self.T_s > C:
-                    R_type = 2
-                    R = 0
-        elif self.Reward_Function_ID == 1:
-            P_dbw = self._convert_2_dbW(P)
-            P_p_dbw = self._convert_2_dbW(P_p[v])
-            if k == 0 and mu * P * self.T_s <= C:
-                if P * G_sp[v] <= self.I[v]:
-                    R_type = 1
-                    Infer = mu * self.T_s * (P_p_dbw * G_pr[v])
-                    R = mu * self.T_s * math.log2(1 + (P_dbw * G_s) / (self.N_0 + Infer))
-            elif k == 1:
-                R_type = 2
-                R = 0
-            else:
-                R_type = 3
-                if mu * P * self.T_s > C:
-                    R += - mu * self.T_s * math.log2(1 + (mu * P * self.T_s - C) * G_s / self.N_0)
-                if P * G_sp[v] > self.I[v]:
-                    R += - mu * self.T_s * math.log2(1 + (P * G_sp[v] - self.I[v]) / self.N_0)
+                        if v == 1:
+                            R = mu * self.T_s * math.log2(1 + (P_dbw * G_s) / (self.N_0 + P_p_dbw * G_pr[v]))
+                        else:
+                            R = mu * self.T_s * math.log2(1 + (P_dbw * G_s) / self.N_0)
+                else:
+                    if k == 1 and mu * P * self.T_s > C:
+                        R = 0
+            # elif self.Reward_Function_ID == 1:
+            #     P_dbw = self._convert_2_dbW(P)
+            #     P_p_dbw = self._convert_2_dbW(P_p[v])
+            #     if k == 0 and mu * P * self.T_s <= C:
+            #         if P * G_sp[v] <= self.I[v]:
+            #             R_type = 1
+            #             Infer = mu * self.T_s * (P_p_dbw * G_pr[v])
+            #             R = mu * self.T_s * math.log2(1 + (P_dbw * G_s) / (self.N_0 + Infer))
+            #     elif k == 1:
+            #         R_type = 2
+            #         R = 0
+            #     else:
+            #         R_type = 3
+            #         if mu * P * self.T_s > C:
+            #             R += - mu * self.T_s * math.log2(1 + (mu * P * self.T_s - C) * G_s / self.N_0)
+            #         if P * G_sp[v] > self.I[v]:
+            #             R += - mu * self.T_s * math.log2(1 + (P * G_sp[v] - self.I[v]) / self.N_0)
 
-        state = (
-            v,
-            prev_E,
-            C,
-            *tuple(P_p),
-            G_s,
-            *tuple(G_sp),
-            *tuple(G_pr),
-            *tuple(G_ps)
-        )
+            state = (
+                v,
+                prev_E,
+                C,
+                *tuple(P_p),
+                G_s,
+                *tuple(G_sp),
+                *tuple(G_pr),
+                *tuple(G_ps)
+            )
+
+            record = (k, mu, E, C, P, G_s)
+            self._add_record(SU, record)
+            states.append(state)
+            Rs += R
+
+        state = tuple(chain(*tuple(states)))
 
         action = (
             k,
@@ -291,13 +325,10 @@ class Environment:
         )
 
         reward = (
-            R,
-            R_type
+            Rs / self.NumSU,
+            0
         )
 
-        # print(f'k = {k}, mu = {mu}, E = {E}, C = {C}, P = {P}, g_s = {g_s}')
-        record = (k, mu, E, C, P, G_s)
-        self._add_record(record)
         return state, action, reward, self._Time_Slot
 
     def get_num_states(self):
