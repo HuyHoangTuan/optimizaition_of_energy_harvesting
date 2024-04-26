@@ -350,10 +350,11 @@ class Train:
                 # if self.steps_done % 12000 == 0:
                 #     self.target_net.load_state_dict(self.policy_net.state_dict())
 
+                dict = {}
                 for key in self.policy_net.state_dict():
-                    self.target_net.state_dict()[key] = self.policy_net.state_dict()[key] * self.tau + self.target_net.state_dict()[key] * (
+                    dict[key] = self.policy_net.state_dict()[key] * self.tau + self.target_net.state_dict()[key] * (
                             1 - self.tau)
-
+                self.target_net.load_state_dict(dict)
 
 
                 # LogUtils.info(
