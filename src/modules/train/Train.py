@@ -325,7 +325,7 @@ class Train:
                 action = self.select_action(state, i_episode)
                 observation, (k, P, Rho), (reward, _), time_slot = self.env.step(action.item(), i_episode)
                 reward = torch.tensor([reward], dtype = torch.float32, device = self.device)
-                print(observation)
+
                 sum_rate += reward.squeeze(0).item() if reward.squeeze(0).item() > 0 else 0
                 sum_reward += reward.squeeze(0).item()
                 sum_Rho += Rho
@@ -350,11 +350,7 @@ class Train:
                 # if self.steps_done % 12000 == 0:
                 #     self.target_net.load_state_dict(self.policy_net.state_dict())
 
-                _dict = {}
-                for key in self.policy_net.state_dict():
-                    _dict[key] = self.policy_net.state_dict()[key] * self.tau + self.target_net.state_dict()[key] * (
-                            1 - self.tau)
-                self.target_net.load_state_dict(_dict)
+
 
 
                 # LogUtils.info(
@@ -368,6 +364,12 @@ class Train:
                 #     f'sample: {self.sample[-1]}, '
                 # )
                 if done:
+                    _dict = {}
+                    for key in self.policy_net.state_dict():
+                        _dict[key] = self.policy_net.state_dict()[key] * self.tau + self.target_net.state_dict()[
+                            key] * (
+                                             1 - self.tau)
+                    self.target_net.load_state_dict(_dict)
                     break
 
             LogUtils.info(

@@ -6,7 +6,7 @@ from utils import LogUtils, RandomUtils
 class Environment:
     def __init__(
             self,
-            NumSU = 5,
+            NumSU = 1,
             NumPU = 2,
             P_max = 1,
             Xi_s = 0.1,
