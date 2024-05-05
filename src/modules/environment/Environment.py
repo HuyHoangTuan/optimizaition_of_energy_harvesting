@@ -241,6 +241,7 @@ class Environment:
 
         states = []
         Rs = 0
+        Gss = 0
 
         self._Time_Slot += 1
         v = self._get_v(self._Time_Slot)
@@ -315,6 +316,7 @@ class Environment:
             self._add_record(SU, record)
             states.append(state)
             Rs += R
+            Gss += G_s
 
         state = tuple(chain(*tuple(states)))
 
@@ -326,6 +328,7 @@ class Environment:
 
         reward = (
             Rs / self.NumSU,
+            Gss / self.NumSU,
             0
         )
 
