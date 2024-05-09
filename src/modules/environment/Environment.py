@@ -1,7 +1,7 @@
 import math
 from itertools import chain
 import numpy as np
-from utils import LogUtils, RandomUtils
+from src.utils import LogUtils, RandomUtils
 
 
 class Environment:
