@@ -10,11 +10,11 @@ import matplotlib.pyplot as plt
 from itertools import count
 from os.path import exists
 
-from utils import LogUtils, RandomUtils
+from src.utils import LogUtils, RandomUtils
 
-from modules.environment import Environment
-from modules.model import DQNModel
-from modules.replay import ReplayMemory, Transition
+from src.modules.environment import Environment
+from src.modules.model import DQNModel
+from src.modules.replay import ReplayMemory, Transition
 
 is_ipython = 'inline' in matplotlib.get_backend()
 if is_ipython:
