@@ -373,11 +373,12 @@ class Train:
                 #     f'sample: {self.sample[-1]}, '
                 # )
                 if done:
-                    _dict = {}
-                    for key in self.policy_net.state_dict():
-                        _dict[key] = self.policy_net.state_dict()[key] * self.tau + self.target_net.state_dict()[
-                            key] * (1 - self.tau)
-                    self.target_net.load_state_dict(_dict)
+                    if i_episode % 5 == 0:
+                        _dict = {}
+                        for key in self.policy_net.state_dict():
+                            _dict[key] = self.policy_net.state_dict()[key] * self.tau + self.target_net.state_dict()[
+                                key] * (1 - self.tau)
+                        self.target_net.load_state_dict(_dict)
                     break
 
             LogUtils.info(
