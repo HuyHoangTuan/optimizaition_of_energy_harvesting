@@ -296,13 +296,13 @@ class Train:
 
         expected_state_action_values = (next_state_values * self.gamma) + reward_batch
 
+        self.optimizer.zero_grad()
+
         criterion = nn.MSELoss()
         loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
-
-        self.optimizer.zero_grad()
         loss.backward()
 
-        torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 100)
+        torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 1.0)
         self.optimizer.step()
         self.steps_done += 1
         return loss
