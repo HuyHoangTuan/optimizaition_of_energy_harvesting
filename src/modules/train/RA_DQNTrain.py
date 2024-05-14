@@ -27,7 +27,7 @@ class RA_DQNTrain:
             eps_decay=0.001,
             alpha=0.003,
             gamma=0.99,
-            beta = -1,
+            beta = -0.5,
             batch_size=64,
             risk_control_parameter=0.1,
             is_dynamic_rho=False,

@@ -74,7 +74,7 @@ class Train:
         self.optimizer = optim.SGD(self.policy_net.parameters(), lr = self.learning_rate)
         self.memory = ReplayMemory(100000)
 
-        self.eps_threshold = 500 # Episode
+        self.eps_threshold = 500 if self.is_dynamic_rho is False else 400 # Episode
         self.steps_done = 0
         self.eps_drop_rate = 0
         # visualization
@@ -95,9 +95,16 @@ class Train:
         self.losses = []
 
         # plt
-        self.SU_rewards_t = []
+        self.SU_rewards_t = [0]
         self.mean_rhos_t = []
-        self.mean_sum_rates_t = []
+        self.mean_sum_rates_t = [0]
+        self.mean_loss_t = [0]
+        self.P_t = [0]
+        # self.mean_P = []
+        self.mean_P_t = [0]
+        self.transmit_action = [0]
+        self.mean_transmit_action = []
+        self.mean_transmit_action_t = [0]
 
     def select_action(self, state, episode = 0):
         sample = RandomUtils.custom_random()
@@ -109,7 +116,7 @@ class Train:
             sample = -1
             self.eps_drop_rate = 0
         else:
-            self.eps_drop_rate += 1
+            self.eps_drop_rate += 1.5
 
         self.eps.append(eps_threshold)
         self.sample.append(sample)
@@ -135,6 +142,9 @@ class Train:
             self.SU_rewards_t.append(torch.mean(torch.tensor(self.SU_rewards, dtype = torch.float)))
             self.mean_rhos_t.append(torch.mean(torch.tensor(self.mean_rhos, dtype = torch.float32)))
             self.mean_sum_rates_t.append(torch.mean(torch.tensor(self.mean_sum_rates, dtype = torch.float)))
+            # self.mean_gs_t.append(torch.mean(torch.tensor(self.mean_gs, dtype = torch.float)))
+            # self.mean_P_t.append(torch.mean(torch.tensor(self.P_t[-self.num_to_get_mean:], dtype=torch.float)))
+            self.mean_transmit_action_t.append(torch.mean(torch.tensor(self.mean_transmit_action, dtype = torch.float)))
             plt.clf()
 
         # Plot reward
@@ -183,16 +193,19 @@ class Train:
         # ---------------------------------------------------------------------
         plt.subplot(3, 2, 3)
 
-        plt.title('Rho')
-        plt.ylabel('Rho value')
+        plt.title('Transmit Action')
+        plt.ylabel('Number')
 
-        rhos_t = torch.tensor(self.rhos, dtype = torch.float)
-        plt.plot(rhos_t.numpy())
+        transmit_action_t = torch.tensor(self.transmit_action, dtype = torch.float)
+        plt.plot(transmit_action_t.numpy())
 
-        mean_rhos_t = torch.tensor(self.mean_rhos_t, dtype = torch.float32)
+        mean_transmit_action_t = torch.tensor(self.mean_transmit_action_t, dtype = torch.float)
+        plt.plot(mean_transmit_action_t.numpy())
+
+        # mean_rhos_t = torch.tensor(self.mean_rhos_t, dtype = torch.float32)
         # print(mean_rhos_t.numpy().astype(np.float32))
-        if self.is_dynamic_rho is True:
-            plt.plot(mean_rhos_t.numpy())
+        # if self.is_dynamic_rho is True:
+        #     plt.plot(mean_rhos_t.numpy())
 
         # ---------------------------------------------------------------------
 
@@ -205,28 +218,19 @@ class Train:
         losses_t = torch.tensor(self.losses, dtype = torch.float)
         plt.plot(losses_t.numpy())
         # ---------------------------------------------------------------------
-        # Plot Reward Type PU1
+        # Plot Transmission Power between SU-Rx and SU-Tx
         # ---------------------------------------------------------------------
-        # plt.subplot(3, 2, 5)
-        #
-        # if show_result is False:
-        #     plt.title('PU1 Reward Type')
-        #     # plt.ylim(0, self.env.N)
-        # else:
-        #     plt.title('PU1 Reward Type (Sum)')
-        # plt.ylabel('Number')
-        #
-        # categories = ['0', '1', '2']
-        #
-        # PU1_R_O_types = np.array(self.R_0_types)[:, 1]
-        # PU1_R_1_types = np.array(self.R_1_types)[:, 1]
-        # PU1_R_2_types = np.array(self.R_2_types)[:, 1]
-        # if show_result is False:
-        #     PU1_R_types = np.array([PU1_R_O_types[-1], PU1_R_1_types[-1], PU1_R_2_types[-1]])
-        # else:
-        #     PU1_R_types = np.array([PU1_R_O_types.sum(), PU1_R_1_types.sum(), PU1_R_2_types.sum()])
-        #
-        # plt.bar(categories, PU1_R_types)
+        plt.subplot(3, 2, 6)
+
+        plt.title('P: SU-Rx <-> SU-Tx')
+        plt.ylabel('Values')
+
+        P_t = torch.tensor(self.P_t, dtype = torch.float)
+        plt.plot(P_t.numpy())
+
+        mean_P_t = torch.tensor(self.mean_P_t, dtype = torch.float)
+        plt.plot(mean_P_t.numpy())
+
         # ---------------------------------------------------------------------
 
         # Plot Reward Type PU2
@@ -293,13 +297,13 @@ class Train:
 
         expected_state_action_values = (next_state_values * self.gamma) + reward_batch
 
+        self.optimizer.zero_grad()
+
         criterion = nn.MSELoss()
         loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
-
-        self.optimizer.zero_grad()
         loss.backward()
 
-        torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 100)
+        torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 1.0)
         self.optimizer.step()
         self.steps_done += 1
         return loss
@@ -308,7 +312,9 @@ class Train:
         LogUtils.info('TRAIN', f'CUDA: {torch.cuda.is_available()}')
         best_reward = -1000
         sum_reward_episode = 0
-        # scheduler = optim.lr_scheduler.ExponentialLR(self.optimizer, gamma = 0.99)
+
+        sum_actions = 0
+        sum_transmit_actions = 0
 
         for i_episode in range(self.num_episode):
             state, _ = self.env.reset()
@@ -318,24 +324,23 @@ class Train:
             sum_Rho = 0
             sum_rate = 0
             sum_loss = 0
+            # sum_gs = 0
+            sum_transmit_actions_episode = 0
             count_loss = 0
+            _P_t = []
 
-            r_0_type = [0, 0]
-            r_1_type = [0, 0]
-            r_2_type = [0, 0]
             for t in count():
                 action = self.select_action(state, i_episode)
-                observation, (k, P, Rho), (reward, reward_type), time_slot = self.env.step(action.item(), i_episode)
+                observation, (k, P, Rho), (reward, rate, _), time_slot = self.env.step(action.item(), i_episode)
                 reward = torch.tensor([reward], dtype = torch.float32, device = self.device)
 
-                v = observation[0]
-                r_0_type[v] += 1 if reward_type == 0 else 0
-                r_1_type[v] += 1 if reward_type == 1 else 0
-                sum_rate += reward.squeeze(0).item() if reward_type == 1 else 0
-                r_2_type[v] += 1 if reward_type == 2 else 0
-
+                sum_rate += rate
                 sum_reward += reward.squeeze(0).item()
+                # sum_gs += gs
                 sum_Rho += Rho
+                sum_transmit_actions += 1 if k == 0 else 0
+                sum_transmit_actions_episode += 1 if k == 0 else 0
+                _P_t.append(P)
 
                 done = True if time_slot >= self.env.N else False
 
@@ -354,14 +359,6 @@ class Train:
                     sum_loss += loss.item()
                     count_loss += 1
 
-                # if self.steps_done % 12000 == 0:
-                #     self.target_net.load_state_dict(self.policy_net.state_dict())
-
-                for key in self.policy_net.state_dict():
-                    self.target_net.state_dict()[key] = self.policy_net.state_dict()[key] * self.tau + self.target_net.state_dict()[key] * (
-                            1 - self.tau)
-
-
 
                 # LogUtils.info(
                 #     'TRAIN_EPISODE',
@@ -374,6 +371,13 @@ class Train:
                 #     f'sample: {self.sample[-1]}, '
                 # )
                 if done:
+                    if i_episode % 5 == 0:
+                        _dict = {}
+                        for key in self.policy_net.state_dict():
+                            _dict[key] = self.policy_net.state_dict()[key] * self.tau + self.target_net.state_dict()[
+                                key] * (
+                                                1 - self.tau)
+                        self.target_net.load_state_dict(_dict)
                     break
 
             LogUtils.info(
@@ -408,9 +412,20 @@ class Train:
             if len(self.mean_rhos) > self.num_to_get_mean:
                 self.mean_rhos = self.mean_rhos[1:]
 
-            self.R_0_types.append(np.array(r_0_type))
-            self.R_1_types.append(np.array(r_1_type))
-            self.R_2_types.append(np.array(r_2_type))
+            # self.gs_t.append(sum_gs / self.env.N)
+            # self.mean_gs.append(sum_gs / self.env.N)
+            # if len(self.mean_gs) > self.num_to_get_mean:
+            #     self.mean_gs = self.mean_gs[1:]
+
+            for _P in _P_t:
+                self.P_t.append(_P)
+                self.mean_P_t.append(torch.mean(torch.tensor(self.P_t[-self.num_to_get_mean:], dtype=torch.float)))
+            # self.mean_P.extend(_P_t)
+
+            self.transmit_action.append(sum_transmit_actions_episode)
+            self.mean_transmit_action.append(sum_transmit_actions_episode)
+            if len(self.mean_transmit_action) > self.num_to_get_mean:
+                self.mean_transmit_action = self.mean_transmit_action[1:]
 
             self.plot_rewards()
 
