@@ -98,9 +98,11 @@ class Train:
         self.SU_rewards_t = [0]
         self.mean_rhos_t = []
         self.mean_sum_rates_t = [0]
-        self.gs_t = [0]
-        self.mean_gs = []
-        self.mean_gs_t = [0]
+        # self.gs_t = [0]
+        # self.mean_gs = []
+        # self.mean_gs_t = [0]
+        self.P_t = [0]
+        self.mean_P_t = [0]
         self.transmit_action = [0]
         self.mean_transmit_action = []
         self.mean_transmit_action_t = [0]
@@ -141,7 +143,7 @@ class Train:
             self.SU_rewards_t.append(torch.mean(torch.tensor(self.SU_rewards, dtype = torch.float)))
             self.mean_rhos_t.append(torch.mean(torch.tensor(self.mean_rhos, dtype = torch.float32)))
             self.mean_sum_rates_t.append(torch.mean(torch.tensor(self.mean_sum_rates, dtype = torch.float)))
-            self.mean_gs_t.append(torch.mean(torch.tensor(self.mean_gs, dtype = torch.float)))
+            # self.mean_gs_t.append(torch.mean(torch.tensor(self.mean_gs, dtype = torch.float)))
             self.mean_transmit_action_t.append(torch.mean(torch.tensor(self.mean_transmit_action, dtype = torch.float)))
             plt.clf()
 
@@ -209,25 +211,27 @@ class Train:
 
         # Plot loss
         # ---------------------------------------------------------------------
-        plt.subplot(3, 2, 5)
+        ax = plt.subplot(3, 2, 5)
         plt.title('Loss')
         plt.ylabel('Loss value')
+        ax.set_ylim(0, 10)
 
         losses_t = torch.tensor(self.losses, dtype = torch.float)
         plt.plot(losses_t.numpy())
         # ---------------------------------------------------------------------
+
         # Plot Transmission Power between SU-Rx and SU-Tx
         # ---------------------------------------------------------------------
         plt.subplot(3, 2, 6)
 
-        plt.title('SU-Rx <-> SU-Tx')
+        plt.title('P: SU-Rx <-> SU-Tx')
         plt.ylabel('Values')
 
-        gs_t = torch.tensor(self.gs_t, dtype = torch.float)
-        plt.plot(gs_t.numpy())
+        P_t = torch.tensor(self.P_t, dtype=torch.float)
+        plt.plot(P_t.numpy())
 
-        mean_gs_t = torch.tensor(self.mean_gs_t, dtype = torch.float)
-        plt.plot(mean_gs_t.numpy())
+        mean_P_t = torch.tensor(self.mean_P_t, dtype=torch.float)
+        plt.plot(mean_P_t.numpy())
 
         # ---------------------------------------------------------------------
 
@@ -323,22 +327,24 @@ class Train:
             sum_Rho = 0
             sum_rate = 0
             sum_loss = 0
-            sum_gs = 0
+            # sum_gs = 0
             sum_transmit_actions_episode = 0
             count_loss = 0
+            _P_t = []
 
             for t in count():
                 action = self.select_action(state, i_episode)
-                observation, (k, P, Rho), (reward, gs, _), time_slot = self.env.step(action.item(), i_episode)
+                observation, (k, P, Rho), (reward, rate, _), time_slot = self.env.step(action.item(), i_episode)
                 reward = torch.tensor([reward], dtype = torch.float32, device = self.device)
 
-                sum_rate += reward.squeeze(0).item() if reward.squeeze(0).item() > 0 else 0
+                sum_rate += rate
                 sum_reward += reward.squeeze(0).item()
-                sum_gs += gs
+                # sum_gs += gs
                 sum_Rho += Rho
-                sum_actions += 1
+                # sum_actions += 1
                 sum_transmit_actions += 1 if k == 0 else 0
                 sum_transmit_actions_episode += 1 if k == 0 else 0
+                _P_t.append(P)
 
                 done = True if time_slot >= self.env.N else False
 
@@ -413,10 +419,14 @@ class Train:
             if len(self.mean_rhos) > self.num_to_get_mean:
                 self.mean_rhos = self.mean_rhos[1:]
 
-            self.gs_t.append(sum_gs / self.env.N)
-            self.mean_gs.append(sum_gs / self.env.N)
-            if len(self.mean_gs) > self.num_to_get_mean:
-                self.mean_gs = self.mean_gs[1:]
+            # self.gs_t.append(sum_gs / self.env.N)
+            # self.mean_gs.append(sum_gs / self.env.N)
+            # if len(self.mean_gs) > self.num_to_get_mean:
+            #     self.mean_gs = self.mean_gs[1:]
+
+            for _P in _P_t:
+                self.P_t.append(_P)
+                self.mean_P_t.append(torch.mean(torch.tensor(self.P_t[-self.num_to_get_mean:], dtype=torch.float)))
 
             self.transmit_action.append(sum_transmit_actions_episode)
             self.mean_transmit_action.append(sum_transmit_actions_episode)

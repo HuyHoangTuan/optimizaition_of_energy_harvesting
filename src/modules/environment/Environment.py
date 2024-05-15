@@ -7,7 +7,7 @@ from src.utils import LogUtils, RandomUtils
 class Environment:
     def __init__(
             self,
-            NumSU=18,
+            NumSU=5,
             NumPU=2,
             P_max=1,
             Xi_s=0.1,
@@ -124,6 +124,18 @@ class Environment:
         for i in range(self.Episode):
             self._E_ambient.append(RandomUtils.uniform(0, self.E_max, self.N))
 
+        # g_rt: [[Episode][SU_RX][SU_TX][Time_Slot]]
+        self.g_rt = []
+        for i in range(self.Episode):
+            self.g_rt.append([])
+            for j in range(0, self.NumSU):
+                self.g_rt[i].append([])
+                for z in range(0, self.NumSU):
+                    if j == z:
+                        self.g_rt[i][j].append(self.g_s[i][j])
+                    else:
+                        self.g_rt[i][j].append(RandomUtils.rayleigh(Xi_s, self.N))
+
         # action spaces
         # Huy's  edition
         k = [0, 1]
@@ -151,7 +163,18 @@ class Environment:
         RandomUtils.shuffle(self.actions_space)
         LogUtils.info('ENV', f'ACTIONS_SPACE: {self.get_num_actions()}')
 
-        # state: (v, E, C, p_p, g_s, g_sp, g_pr, g_ps)
+        # state: (
+        #   v,
+        #   E,
+        #   C,
+        #   p_p,
+        #   # g_s,
+        #   g_rt,
+        #   g_sp,
+        #   g_pr,
+        #   g_ps
+        #   )
+        # (3 + self.NumPU + self.NumSU + 3 * self.NumPU)
         self._Default_State = tuple(
             chain(
                 *tuple(
@@ -160,11 +183,12 @@ class Environment:
                             0,
                             0,
                             0,
-                            *tuple([0 for i in range(NumPU)]),
-                            0,
-                            *tuple([0 for i in range(NumPU)]),
-                            *tuple([0 for i in range(NumPU)]),
-                            *tuple([0 for i in range(NumPU)])
+                            *tuple([0 for i in range(self.NumPU)]),
+                            # 0,
+                            *tuple([0 for i in range(self.NumSU)]),
+                            *tuple([0 for i in range(self.NumPU)]),
+                            *tuple([0 for i in range(self.NumPU)]),
+                            *tuple([0 for i in range(self.NumPU)])
                         )
                         for j in range(self.NumSU)
                     ]
@@ -208,6 +232,13 @@ class Environment:
     def _calc_E_TS(self, P_p, G_ps, Rho):
         return Rho * self.T_s * P_p * self.Eta * G_ps
 
+    def _calc_Interference_Rx_Tx(self, P, SU, g_rt):
+        sum = 0
+        for i in range(self.NumSU):
+            if i != SU:
+                sum += P * g_rt[i]
+        return sum
+
     def _get_record(self, SU, time_slot):
         # record: (k, mu, E, C, P)
 
@@ -241,6 +272,7 @@ class Environment:
 
         states = []
         Rs = 0
+        Rates = 0
         Gss = 0
 
         self._Time_Slot += 1
@@ -248,6 +280,7 @@ class Environment:
         k = self._get_k(action)
         P = self._get_P(action)
         Rho = self._get_Rho(action)
+
         for SU in range(self.NumSU):
             prev_k, prev_mu, prev_E, prev_C, prev_P, prev_G_s = self._get_record(SU, self._Time_Slot - 1)
             # todo: change mu to
@@ -259,6 +292,7 @@ class Environment:
             G_sp = (np.array(self.g_sp[episode][SU])[:, self._Time_Slot - 1]).tolist()
             G_ps = (np.array(self.g_ps[episode][SU])[:, self._Time_Slot - 1]).tolist()
             G_p = (np.array(self.g_p[episode])[:, self._Time_Slot - 1]).tolist()
+            G_rt = (np.array(self.g_rt[episode][SU])[:, self._Time_Slot - 1]).tolist()
 
             # todo: maybe need to multiply Rho into E_ambient, because 1-Rho is the ratio time that agent
             # transmit power, thus, rho ratio time that agent harvest energy
@@ -277,9 +311,11 @@ class Environment:
                         P_p_dbw = self._convert_2_dbW(P_p[v])
 
                         if v == 1:
-                            R = mu * self.T_s * math.log2(1 + (P_dbw * G_s) / (self.N_0 + P_p_dbw * G_pr[v]))
+                            R = mu * self.T_s * math.log2(1 + (P_dbw * G_s) / (self.N_0 + P_p_dbw * G_pr[v] + self._calc_Interference_Rx_Tx(P_dbw, SU, G_rt)))
                         else:
-                            R = mu * self.T_s * math.log2(1 + (P_dbw * G_s) / self.N_0)
+                            R = mu * self.T_s * math.log2(1 + (P_dbw * G_s) / (self.N_0 + self._calc_Interference_Rx_Tx(P_dbw, SU, G_rt)))
+
+                        Rates += R
                 else:
                     if k == 1 and mu * P * self.T_s > C:
                         R = 0
@@ -306,7 +342,8 @@ class Environment:
                 prev_E,
                 C,
                 *tuple(P_p),
-                G_s,
+                # G_s,
+                *tuple(G_rt),
                 *tuple(G_sp),
                 *tuple(G_pr),
                 *tuple(G_ps)
@@ -327,8 +364,8 @@ class Environment:
         )
 
         reward = (
-            Rs / self.NumSU,
-            Gss / self.NumSU,
+            Rs,
+            Rates,
             0
         )
 
