@@ -10,6 +10,7 @@ from src.modules.environment import Environment
 from src.modules.model import DQNs
 from torch import nn
 from src.modules.replay import ReplayMemory, Transition
+import random
 
 is_ipython = 'inline' in matplotlib.get_backend()
 if is_ipython:
@@ -29,7 +30,7 @@ class RA_DQNTrain:
             gamma=0.99,
             beta = -0.5,
             batch_size=64,
-            risk_control_parameter=0.1,
+            risk_control_parameter=0.001,
             is_dynamic_rho=False,
     ):
         self._episodes = episodes
@@ -72,6 +73,12 @@ class RA_DQNTrain:
 
         self._rhos_plt = []
         self._mean_rhos_plt = []
+
+        self._transmit_actions_plt = []
+        self._mean_transmit_actions_plt = []
+
+        self._P_t_plt = []
+        self._mean_P_t_plt = []
 
         self._num_DQN = 5
         self._Q = DQNs(
@@ -140,12 +147,12 @@ class RA_DQNTrain:
         if not show_result:
             self._mean_rewards_plt.append(torch.mean(torch.tensor(self._rewards_plt[-self._f:], dtype=torch.float32)))
             self._mean_rates_plt.append(torch.mean(torch.tensor(self._rates_plt[-self._f:], dtype=torch.float32)))
-            self._mean_loss_plt.append(
-                torch.mean(torch.tensor(self._loss_plt[-self._f:], dtype=torch.float32)))
+            self._mean_loss_plt.append(torch.mean(torch.tensor(self._loss_plt[-self._f:], dtype=torch.float32)))
             self._mean_rhos_plt.append(torch.mean(torch.tensor(self._rhos_plt[-self._f:], dtype=torch.float32)))
+            self._mean_transmit_actions_plt.append(torch.mean(torch.tensor(self._transmit_actions_plt[-self._f:], dtype=torch.float)))
             plt.clf()
         else:
-            parser = Parser('dqn', 'res/log/dqn_2024_02_28_21_07_50.log')
+            # parser = Parser('dqn', 'res/log/dqn_2024_02_28_21_07_50.log')
             plt.clf()
 
         # Plot reward
@@ -190,15 +197,19 @@ class RA_DQNTrain:
             plt.legend(loc='best')
         # ---------------------------------------------------------------------
 
-        # Plot td error
+        # Plot transmit action
         # ---------------------------------------------------------------------
         plt.subplot(3, 2, 3)
 
-        plt.title('Loss')
-        plt.ylabel('Value')
+        plt.title('Transmit Action')
+        plt.ylabel('Number')
 
-        plt.plot(torch.tensor(self._loss_plt, dtype=torch.float32).numpy())
-        plt.plot(torch.tensor(self._mean_loss_plt, dtype=torch.float32).numpy())
+        transmit_action_t = torch.tensor(self._transmit_actions_plt, dtype=torch.float)
+        plt.plot(transmit_action_t.numpy())
+
+        mean_transmit_action_t = torch.tensor(self._mean_transmit_actions_plt, dtype=torch.float)
+        plt.plot(mean_transmit_action_t.numpy())
+
         # ---------------------------------------------------------------------
 
         # Plot eps
@@ -212,16 +223,30 @@ class RA_DQNTrain:
         # plt.plot(torch.tensor(self._eps_plt, dtype=torch.float32).numpy())
         # ---------------------------------------------------------------------
 
-        # Plot rho
+        # Plot loss
         # ---------------------------------------------------------------------
         plt.subplot(3, 2, 5)
 
-        plt.title('Rhos')
+        plt.title('Loss')
         plt.ylabel('Value')
 
-        plt.plot(torch.tensor(self._rhos_plt, dtype=torch.float32).numpy())
-        if self._is_dynamic_rho is True:
-            plt.plot(torch.tensor(self._mean_rhos_plt, dtype=torch.float32).numpy())
+        plt.plot(torch.tensor(self._loss_plt, dtype=torch.float32).numpy())
+        plt.plot(torch.tensor(self._mean_loss_plt, dtype=torch.float32).numpy())
+        # ---------------------------------------------------------------------
+
+        # Plot Transmission Power between SU-Rx and SU-Tx
+        # ---------------------------------------------------------------------
+        plt.subplot(3, 2, 6)
+
+        plt.title('P: SU-Rx <-> SU-Tx')
+        plt.ylabel('Values')
+
+        P_t = torch.tensor(self._P_t_plt, dtype=torch.float)
+        plt.plot(P_t.numpy())
+
+        mean_P_t = torch.tensor(self._mean_P_t_plt, dtype=torch.float)
+        plt.plot(mean_P_t.numpy())
+
         # ---------------------------------------------------------------------
 
         plt.tight_layout()
@@ -298,18 +323,23 @@ class RA_DQNTrain:
             sum_rate = 0
             sum_rho = 0
 
-            for t in count():
+            sum_transmit_actions_episode = 0
+
+            _P_t = []
+
+            if i_episode % 5 == 0:
                 # update Q Hat
-                H = math.floor(RandomUtils.custom_random() * self._num_DQN)
+                H = random.randint(0, self._num_DQN - 1)
                 self._update_Q_Hat(H, state)
 
+            for t in count():
                 # select action according to Q Hat
                 action = self._select_action(self._Q_hat(0), state, i_episode)
                 # print(action)
                 # action = action.item()
 
                 # update Q Function
-                observation, (k, P, Rho), (reward, reward_type), time_slot = self._env.step(action, i_episode)
+                observation, (k, P, Rho), (reward, rate, _), time_slot = self._env.step(action, i_episode)
                 done = True if time_slot >= self._env.N else False
                 next_state = None
 
@@ -319,10 +349,13 @@ class RA_DQNTrain:
                 reward = torch.tensor([reward], dtype=torch.float32, device=self._device)
                 loss = self._optimize_model(state, action, next_state, reward)
                 state = next_state
+
                 sum_loss += loss
                 sum_reward += reward.item()
-                sum_rate += 0 if reward.item() <= 0 else reward.item()
+                sum_rate += rate
                 sum_rho += Rho
+                sum_transmit_actions_episode += 1 if k == 0 else 0
+                _P_t.append(P)
 
                 # LogUtils.info(
                 #     'TRAIN_EPISODE',
@@ -353,6 +386,11 @@ class RA_DQNTrain:
             self._rates_plt.append(sum_rate)
             self._loss_plt.append(sum_loss)
             self._rhos_plt.append(sum_rho)
+            self._transmit_actions_plt.append(sum_transmit_actions_episode)
+
+            for _P in _P_t:
+                self._P_t_plt.append(_P)
+                self._mean_P_t_plt.append(torch.mean(torch.tensor(self._P_t_plt[-self._f:], dtype=torch.float)))
 
             self._plot(show_result=False)
 

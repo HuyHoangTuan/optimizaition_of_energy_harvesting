@@ -33,12 +33,11 @@ class DQNs:
         return self._DQNs[idx]
 
     def loss(self, idx, values: Tensor, expected_values: Tensor):
+        self._optimizers[idx].zero_grad()
         f = nn.MSELoss()
         _loss = f(values, expected_values)
-
-        self._optimizers[idx].zero_grad()
         _loss.backward()
-        torch.nn.utils.clip_grad_value_(self._DQNs[idx].parameters(), 100)
+        torch.nn.utils.clip_grad_value_(self._DQNs[idx].parameters(), 1)
         self._optimizers[idx].step()
 
         return _loss

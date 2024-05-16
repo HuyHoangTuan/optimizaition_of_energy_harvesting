@@ -310,7 +310,6 @@ class Environment:
                     if P * G_sp[v] <= self.I[v]:
                         P_dbw = self._convert_2_dbW(P)
                         P_p_dbw = self._convert_2_dbW(P_p[v])
-
                         if v == 1:
                             R = mu * self.T_s * math.log2(1 + (P_dbw * G_s) / (self.N_0 + P_p_dbw * G_pr[v] + self._calc_Interference_Rx_Tx(P_dbw, SU, G_rt)))
                         else:

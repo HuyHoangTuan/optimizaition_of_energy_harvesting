@@ -29,7 +29,7 @@ if __name__ == '__main__':
         PAndRhoAnalysis.plot(path)
 
     else:
-        from utils import LogUtils
+        from src.utils import LogUtils
         import time
         try:
             LogUtils.info("MAIN", "START")
