@@ -388,6 +388,7 @@ class Train:
                 f'loss: {0 if count_loss <=0 else sum_loss / count_loss}, '
                 f'rho: {sum_Rho / self.env.N}, '
                 f'transmit_actions: {sum_transmit_actions_episode}, '
+                f'P: {_P_t}'
             )
 
             self.losses.append(0 if count_loss <=0 else sum_loss / count_loss)
