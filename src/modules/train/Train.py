@@ -386,7 +386,8 @@ class Train:
                 f'reward: {sum_reward}, '
                 f'rates: {sum_rate}, '
                 f'loss: {0 if count_loss <=0 else sum_loss / count_loss}, '
-                f'rho: {sum_Rho / self.env.N}'
+                f'rho: {sum_Rho / self.env.N}, '
+                f'transmit_actions: {sum_transmit_actions_episode}, '
             )
 
             self.losses.append(0 if count_loss <=0 else sum_loss / count_loss)
