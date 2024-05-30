@@ -1,5 +1,6 @@
 import sys
 from dotenv import load_dotenv
+from src.utils import LogUtils
 
 load_dotenv()
 sys.path.insert(0, "./src")
@@ -28,7 +29,7 @@ if __name__ == '__main__':
         PAndRhoAnalysis.plot(path)
 
     else:
-        from src.utils import LogUtils
+
         LogUtils.info("MAIN", "START")
         import time
         try:
