@@ -1,7 +1,7 @@
 import sys
 
 from dotenv import load_dotenv
-
+from src.utils import LogUtils
 load_dotenv()
 sys.path.insert(0, "./src")
 
@@ -29,7 +29,7 @@ if __name__ == '__main__':
         PAndRhoAnalysis.plot(path)
 
     else:
-        from utils import LogUtils
+
         LogUtils.info("MAIN", "START")
         import time
         try:
@@ -65,6 +65,6 @@ if __name__ == '__main__':
             LogUtils.delete_log()
 
         LogUtils.info("MAIN", "END")
-        LogUtils.delete_log()
+        # LogUtils.delete_log()
 
 
