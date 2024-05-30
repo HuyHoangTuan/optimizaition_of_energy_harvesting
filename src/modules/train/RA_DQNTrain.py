@@ -28,9 +28,9 @@ class RA_DQNTrain:
             eps_decay=0.001,
             alpha=0.003,
             gamma=0.99,
-            beta = -0.5,
-            batch_size=64,
-            risk_control_parameter=0.001,
+            beta = -0.001,
+            batch_size=128,
+            risk_control_parameter=0.01,
             is_dynamic_rho=False,
     ):
         self._episodes = episodes
@@ -294,7 +294,7 @@ class RA_DQNTrain:
                 with torch.no_grad():
                     next_state_values[non_final_mask] = self._Q(idx)(non_final_next_states).max(1).values
 
-                _learning_rate = self._Q.get_learning_rate(idx, state_batch, action_batch)
+                # _learning_rate = self._Q.get_learning_rate(idx, state_batch, action_batch)
                 expected_state_action_values = (
                         state_action_values + (
                             self._utility_function(

@@ -167,11 +167,13 @@ class Environment:
         #     E,
         #     C,
         #     # g_s,
-        #     g_rt,
-        #     g_pr1,
-        #     g_sp,
-        #     g_p,
-        #     g_ps
+        #     # g_rt,
+        #     # g_pr1,
+        #     # g_sp,
+        #     # g_p,
+        #     # g_ps
+        #     contraint 14
+        #     contraint 15
         # )
         # (4 + self.NumSU + 3 * self.NumPU) * self.NumSU
 
@@ -184,11 +186,13 @@ class Environment:
                             0,
                             0,
                             # 0,
-                            *tuple([0 for i in range(self.NumSU)]),
+                            # *tuple([0 for i in range(self.NumSU)]),
+                            # 0,
+                            # *tuple([0 for i in range(self.NumPU)]),
+                            # *tuple([0 for i in range(self.NumPU)]),
+                            # *tuple([0 for i in range(self.NumPU)]),
                             0,
-                            *tuple([0 for i in range(self.NumPU)]),
-                            *tuple([0 for i in range(self.NumPU)]),
-                            *tuple([0 for i in range(self.NumPU)])
+                            0
                         )
                         for j in range(self.NumSU)
                     ]
@@ -335,17 +339,22 @@ class Environment:
             #             R += - mu * self.T_s * math.log2(1 + (mu * P * self.T_s - C) * G_s / self.N_0)
             #         if P * G_sp[v] > self.I[v]:
             #             R += - mu * self.T_s * math.log2(1 + (P * G_sp[v] - self.I[v]) / self.N_0)
+            constraint_14 = ((1 - k) * P * self.T_s <= C)
+            constraint_15 = (G_sp[v] * P <= self.I[v])
             state = (
                 v,
                 prev_E,
                 C,
                 # G_s,
-                *tuple(G_rt),
-                G_pr[1],
-                *tuple(G_sp),
-                *tuple(G_ps),
-                *tuple(G_p)
+                # *tuple(G_rt),
+                # G_pr[1],
+                # *tuple(G_sp),
+                # *tuple(G_ps),
+                # *tuple(G_p),
+                constraint_14,
+                constraint_15
             )
+            print(f'{SU}: {state}')
             record = (k, mu, E, C, P, G_s)
             self._add_record(SU, record)
             states.append(state)

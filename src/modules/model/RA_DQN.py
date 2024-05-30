@@ -42,17 +42,17 @@ class DQNs:
 
         return _loss
 
-    def get_learning_rate(self, idx, state_batch, action_batch):
-        alphas = []
-        size = state_batch.size()
-        for i in range(size[0]):
-            key = tuple(state_batch[i].tolist())
-            if key not in self._N[idx]:
-                self._N[idx][key] = torch.zeros(self._n_action,  dtype=torch.float32, device=self._device)
-
-            if self._N[idx][key][action_batch[i].item()] == 0:
-                alphas.append(1.0)
-            else:
-                alphas.append(1.0/self._N[idx][key][action_batch[i].item()])
-            self._N[idx][key][action_batch[i].item()] += 1
-        return torch.tensor(alphas, dtype=torch.float32, device=self._device).unsqueeze(1)
+    # def get_learning_rate(self, idx, state_batch, action_batch):
+    #     alphas = []
+    #     size = state_batch.size()
+    #     for i in range(size[0]):
+    #         key = tuple(state_batch[i].tolist())
+    #         if key not in self._N[idx]:
+    #             self._N[idx][key] = torch.zeros(self._n_action,  dtype=torch.float32, device=self._device)
+    #
+    #         if self._N[idx][key][action_batch[i].item()] == 0:
+    #             alphas.append(1.0)
+    #         else:
+    #             alphas.append(1.0/self._N[idx][key][action_batch[i].item()])
+    #         self._N[idx][key][action_batch[i].item()] += 1
+    #     return torch.tensor(alphas, dtype=torch.float32, device=self._device).unsqueeze(1)
