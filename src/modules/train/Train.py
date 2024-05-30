@@ -15,7 +15,7 @@ from src.utils import LogUtils, RandomUtils
 from src.modules.environment import Environment
 from src.modules.model import DQNModel
 from src.modules.replay import ReplayMemory, Transition
-
+from src.utils import Parser
 is_ipython = 'inline' in matplotlib.get_backend()
 if is_ipython:
     from IPython import display
@@ -138,7 +138,7 @@ class Train:
     def plot_rewards(self, show_result = False):
 
         plt.figure(num = 1, figsize = (16, 9), dpi = 120)
-
+        parser = None
         if show_result is False:
             self.SU_rewards_t.append(torch.mean(torch.tensor(self.SU_rewards, dtype = torch.float)))
             self.mean_rhos_t.append(torch.mean(torch.tensor(self.mean_rhos, dtype = torch.float32)))
@@ -146,7 +146,9 @@ class Train:
             # self.mean_gs_t.append(torch.mean(torch.tensor(self.mean_gs, dtype = torch.float)))
             self.mean_transmit_action_t.append(torch.mean(torch.tensor(self.mean_transmit_action, dtype = torch.float)))
             plt.clf()
-
+        else:
+            parser = Parser('dqn', f'res/result/base_result_{self.env.NumSU}.log')
+            plt.clf()
         # Plot reward
         # ---------------------------------------------------------------------
         plt.subplot(3, 2, 1)
@@ -393,7 +395,9 @@ class Train:
                 f'reward: {sum_reward}, '
                 f'rates: {sum_rate}, '
                 f'loss: {0 if count_loss <=0 else sum_loss / count_loss}, '
-                f'rho: {sum_Rho / self.env.N}'
+                f'rho: {sum_Rho / self.env.N}, '
+                f'transmit_actions: {sum_transmit_actions_episode}, '
+                f'P: {_P_t}'
             )
 
             self.losses.append(0 if count_loss <=0 else sum_loss / count_loss)
