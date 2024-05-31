@@ -135,19 +135,23 @@ class Train:
                 dtype = torch.long
             )
 
-    def plot_rewards(self, show_result = False):
+    def plot_rewards(self, show_result=False):
 
-        plt.figure(num = 1, figsize = (16, 9), dpi = 120)
+        plt.figure(num=1, figsize=(16, 9), dpi=120)
         parser = None
+        old_label = 'Hard update + RM'
+        new_label = 'soft update + RM'
         if show_result is False:
-            self.SU_rewards_t.append(torch.mean(torch.tensor(self.SU_rewards, dtype = torch.float)))
-            self.mean_rhos_t.append(torch.mean(torch.tensor(self.mean_rhos, dtype = torch.float32)))
-            self.mean_sum_rates_t.append(torch.mean(torch.tensor(self.mean_sum_rates, dtype = torch.float)))
+            self.SU_rewards_t.append(torch.mean(torch.tensor(self.SU_rewards, dtype=torch.float)))
+            self.mean_rhos_t.append(torch.mean(torch.tensor(self.mean_rhos, dtype=torch.float32)))
+            self.mean_sum_rates_t.append(torch.mean(torch.tensor(self.mean_sum_rates, dtype=torch.float)))
             # self.mean_gs_t.append(torch.mean(torch.tensor(self.mean_gs, dtype = torch.float)))
-            self.mean_transmit_action_t.append(torch.mean(torch.tensor(self.mean_transmit_action, dtype = torch.float)))
+            self.mean_transmit_action_t.append(torch.mean(torch.tensor(self.mean_transmit_action, dtype=torch.float)))
             plt.clf()
         else:
-            parser = Parser('dqn', f'res/result/base_result_{self.env.NumSU}.log')
+            # parser = Parser('dqn', f'res/result/base_result_{self.env.NumSU}.log')
+            parser = Parser('dqn', f'res/result/proposed_result_hard_update_{self.env.NumSU}.log')
+            base_rewards, base_rates, base_loss, base_rho, base_transmit_actions, base_P = parser.get_data()
             plt.clf()
         # Plot reward
         # ---------------------------------------------------------------------
@@ -156,11 +160,22 @@ class Train:
         plt.title('Rewards')
         plt.ylabel('Reward')
 
-        rewards_t = torch.tensor(self.rewards, dtype = torch.float)
-        plt.plot(rewards_t.numpy())
+        if show_result == False:
+            rewards_t = torch.tensor(self.rewards, dtype=torch.float)
+            plt.plot(rewards_t.numpy())
+        else:
+            if parser != None:
+                base_mean_rewards_plt = []
+                for i in range(len(base_rewards)):
+                    base_mean_rewards_plt.append(
+                        torch.mean(torch.tensor(base_rewards[:i][-self.num_to_get_mean:], dtype=torch.float32)))
+                plt.plot(torch.tensor(base_mean_rewards_plt, dtype=torch.float32).numpy(), label=old_label)
 
-        SU_rewards_t = torch.tensor(self.SU_rewards_t, dtype = torch.float)
-        plt.plot(SU_rewards_t.numpy())
+        SU_rewards_t = torch.tensor(self.SU_rewards_t, dtype=torch.float)
+        plt.plot(SU_rewards_t.numpy(), label=new_label)
+
+        if show_result == True:
+            plt.legend(loc='best')
 
         # ---------------------------------------------------------------------
 
@@ -171,11 +186,22 @@ class Train:
         plt.title('Rates')
         plt.ylabel('Rate value')
 
-        rates_t = torch.tensor(self.sum_rates, dtype=torch.float)
-        plt.plot(rates_t.numpy())
+        if show_result == False:
+            rates_t = torch.tensor(self.sum_rates, dtype=torch.float)
+            plt.plot(rates_t.numpy())
+        else:
+            if parser != None:
+                base_mean_rates_plt = []
+                for i in range(len(base_rates)):
+                    base_mean_rates_plt.append(
+                        torch.mean(torch.tensor(base_rates[:i][-self.num_to_get_mean:], dtype=torch.float32)))
+                plt.plot(torch.tensor(base_mean_rates_plt, dtype=torch.float32).numpy(), label=old_label)
 
         mean_sum_rates_t = torch.tensor(self.mean_sum_rates_t, dtype=torch.float)
-        plt.plot(mean_sum_rates_t.numpy())
+        plt.plot(mean_sum_rates_t.numpy(), label=new_label)
+
+        if show_result == True:
+            plt.legend(loc='best')
 
         # ---------------------------------------------------------------------
 
@@ -186,7 +212,7 @@ class Train:
         plt.title('Epsilon')
         plt.ylabel('Epsilon value')
 
-        eps_t = torch.tensor(self.eps_e, dtype = torch.float)
+        eps_t = torch.tensor(self.eps_e, dtype=torch.float)
         plt.plot(eps_t.numpy())
 
         # ---------------------------------------------------------------------
@@ -198,11 +224,22 @@ class Train:
         plt.title('Transmit Action')
         plt.ylabel('Number')
 
-        transmit_action_t = torch.tensor(self.transmit_action, dtype = torch.float)
-        plt.plot(transmit_action_t.numpy())
+        if show_result == False:
+            transmit_action_t = torch.tensor(self.transmit_action, dtype=torch.float)
+            plt.plot(transmit_action_t.numpy())
+        else:
+            if parser != None:
+                base_mean_ta_plt = []
+                for i in range(len(base_transmit_actions)):
+                    base_mean_ta_plt.append(torch.mean(
+                        torch.tensor(base_transmit_actions[:i][-self.num_to_get_mean:], dtype=torch.float32)))
+                plt.plot(torch.tensor(base_mean_ta_plt, dtype=torch.float32).numpy(), label=old_label)
 
-        mean_transmit_action_t = torch.tensor(self.mean_transmit_action_t, dtype = torch.float)
-        plt.plot(mean_transmit_action_t.numpy())
+        mean_transmit_action_t = torch.tensor(self.mean_transmit_action_t, dtype=torch.float)
+        plt.plot(mean_transmit_action_t.numpy(), label=new_label)
+
+        if show_result == True:
+            plt.legend(loc='best')
 
         # mean_rhos_t = torch.tensor(self.mean_rhos_t, dtype = torch.float32)
         # print(mean_rhos_t.numpy().astype(np.float32))
@@ -218,8 +255,26 @@ class Train:
         plt.ylabel('Loss value')
         ax.set_ylim(0, 10)
 
-        losses_t = torch.tensor(self.losses, dtype = torch.float)
-        plt.plot(losses_t.numpy())
+        if show_result == False:
+            losses_t = torch.tensor(self.losses, dtype=torch.float)
+            plt.plot(losses_t.numpy())
+        else:
+            if parser != None:
+                base_mean_loss_plt = []
+                for i in range(len(base_loss)):
+                    base_mean_loss_plt.append(
+                        torch.mean(torch.tensor(base_loss[:i][-self.num_to_get_mean:], dtype=torch.float32)))
+                plt.plot(torch.tensor(base_mean_loss_plt, dtype=torch.float32).numpy(), label=old_label)
+
+                proposed_mean_loss_plt = []
+                for i in range(len(self.losses)):
+                    proposed_mean_loss_plt.append(
+                        torch.mean(torch.tensor(self.losses[:i][-self.num_to_get_mean:], dtype=torch.float32)))
+                plt.plot(torch.tensor(proposed_mean_loss_plt, dtype=torch.float32).numpy(), label=new_label)
+
+        if show_result == True:
+            plt.legend(loc='best')
+
         # ---------------------------------------------------------------------
 
         # Plot Transmission Power between SU-Rx and SU-Tx
@@ -229,11 +284,22 @@ class Train:
         plt.title('P: SU-Rx <-> SU-Tx')
         plt.ylabel('Values')
 
-        P_t = torch.tensor(self.P_t, dtype=torch.float)
-        plt.plot(P_t.numpy())
+        if show_result == False:
+            P_t = torch.tensor(self.P_t, dtype=torch.float)
+            plt.plot(P_t.numpy())
+        else:
+            if parser != None:
+                base_mean_p_plt = []
+                for i in range(len(base_P)):
+                    base_mean_p_plt.append(
+                        torch.mean(torch.tensor(base_P[:i][-self.num_to_get_mean:], dtype=torch.float32)))
+                plt.plot(torch.tensor(base_mean_p_plt, dtype=torch.float32).numpy(), label=old_label)
 
         mean_P_t = torch.tensor(self.mean_P_t, dtype=torch.float)
-        plt.plot(mean_P_t.numpy())
+        plt.plot(mean_P_t.numpy(), label=new_label)
+
+        if show_result == True:
+            plt.legend(loc='best')
 
         # ---------------------------------------------------------------------
 
@@ -262,13 +328,13 @@ class Train:
         # ---------------------------------------------------------------------
 
         plt.tight_layout()
-        plt.pause(1/1024)  # pause a bit so that plots are updated
+        plt.pause(1 / 1024)  # pause a bit so that plots are updated
         # ---------------------------------------------------------------------
 
         if is_ipython:
             if not show_result:
                 display.display(plt.gcf())
-                display.clear_output(wait = True)
+                display.clear_output(wait=True)
             else:
                 display.display(plt.gcf())
 
@@ -387,6 +453,7 @@ class Train:
                             _dict[key] = self.policy_net.state_dict()[key] * self.tau + self.target_net.state_dict()[
                                 key] * (1 - self.tau)
                         self.target_net.load_state_dict(_dict)
+                        # self.target_net.load_state_dict(self.policy_net.state_dict())
                     break
 
             LogUtils.info(
