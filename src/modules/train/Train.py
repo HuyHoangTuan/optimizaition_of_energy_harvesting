@@ -166,10 +166,10 @@ class Train:
                 for i in range(len(base_rewards)):
                     base_mean_rewards_plt.append(
                         torch.mean(torch.tensor(base_rewards[:i][-self.num_to_get_mean:], dtype=torch.float32)))
-                plt.plot(torch.tensor(base_mean_rewards_plt, dtype=torch.float32).numpy(), label='Base Env')
+                plt.plot(torch.tensor(base_mean_rewards_plt, dtype=torch.float32).numpy(), label='Soft Update')
 
         SU_rewards_t = torch.tensor(self.SU_rewards_t, dtype=torch.float)
-        plt.plot(SU_rewards_t.numpy(), label='Proposed Env')
+        plt.plot(SU_rewards_t.numpy(), label='Hard Update')
 
         if show_result == True:
             plt.legend(loc='best')
@@ -192,10 +192,10 @@ class Train:
                 for i in range(len(base_rates)):
                     base_mean_rates_plt.append(
                         torch.mean(torch.tensor(base_rates[:i][-self.num_to_get_mean:], dtype=torch.float32)))
-                plt.plot(torch.tensor(base_mean_rates_plt, dtype=torch.float32).numpy(), label='Base Env')
+                plt.plot(torch.tensor(base_mean_rates_plt, dtype=torch.float32).numpy(), label='Soft Update')
 
         mean_sum_rates_t = torch.tensor(self.mean_sum_rates_t, dtype=torch.float)
-        plt.plot(mean_sum_rates_t.numpy(), label='Proposed Env')
+        plt.plot(mean_sum_rates_t.numpy(), label='Hard Update')
 
         if show_result == True:
             plt.legend(loc='best')
@@ -230,10 +230,10 @@ class Train:
                 for i in range(len(base_transmit_actions)):
                     base_mean_ta_plt.append(torch.mean(
                         torch.tensor(base_transmit_actions[:i][-self.num_to_get_mean:], dtype=torch.float32)))
-                plt.plot(torch.tensor(base_mean_ta_plt, dtype=torch.float32).numpy(), label='Base Env')
+                plt.plot(torch.tensor(base_mean_ta_plt, dtype=torch.float32).numpy(), label='Soft Update')
 
         mean_transmit_action_t = torch.tensor(self.mean_transmit_action_t, dtype=torch.float)
-        plt.plot(mean_transmit_action_t.numpy(), label='Proposed Env')
+        plt.plot(mean_transmit_action_t.numpy(), label='Hard Update')
 
         if show_result == True:
             plt.legend(loc='best')
@@ -261,13 +261,13 @@ class Train:
                 for i in range(len(base_loss)):
                     base_mean_loss_plt.append(
                         torch.mean(torch.tensor(base_loss[:i][-self.num_to_get_mean:], dtype=torch.float32)))
-                plt.plot(torch.tensor(base_mean_loss_plt, dtype=torch.float32).numpy(), label='Base Env')
+                plt.plot(torch.tensor(base_mean_loss_plt, dtype=torch.float32).numpy(), label='Soft Update')
 
                 proposed_mean_loss_plt = []
                 for i in range(len(self.losses)):
                     proposed_mean_loss_plt.append(
                         torch.mean(torch.tensor(self.losses[:i][-self.num_to_get_mean:], dtype=torch.float32)))
-                plt.plot(torch.tensor(proposed_mean_loss_plt, dtype=torch.float32).numpy(), label='Proposed Env')
+                plt.plot(torch.tensor(proposed_mean_loss_plt, dtype=torch.float32).numpy(), label='Hard Update')
 
         if show_result == True:
             plt.legend(loc='best')
@@ -290,10 +290,10 @@ class Train:
                 for i in range(len(base_P)):
                     base_mean_p_plt.append(
                         torch.mean(torch.tensor(base_P[:i][-self.num_to_get_mean:], dtype=torch.float32)))
-                plt.plot(torch.tensor(base_mean_p_plt, dtype=torch.float32).numpy(), label='Base Env')
+                plt.plot(torch.tensor(base_mean_p_plt, dtype=torch.float32).numpy(), label='Soft Update')
 
         mean_P_t = torch.tensor(self.mean_P_t, dtype=torch.float)
-        plt.plot(mean_P_t.numpy(), label='Proposed Env')
+        plt.plot(mean_P_t.numpy(), label='Hard Update')
 
         if show_result == True:
             plt.legend(loc='best')
