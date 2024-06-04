@@ -32,30 +32,54 @@ if __name__ == '__main__':
 
         LogUtils.info("MAIN", "START")
         import time
-        try:
-            start_time = time.time()
-            if '-ra' in args:
-                from src.modules.train import RiskAverseTrain
-                train = RiskAverseTrain(
-                    episodes=episodes,
-                    is_dynamic_rho=is_dynamic_rho
-                )
-                train.start_train()
-            elif '-dqn' in args:
-                from src.modules.train import Train
-                train = Train(
-                    num_episode = episodes,
-                    is_dynamic_rho = is_dynamic_rho,
-                    reward_function_id = reward_function_id
-                )
-                train.start_train()
-            else:
-                print("Invalid arguments!")
-            end_time = time.time()
-            LogUtils.info("MAIN", f"Time: {end_time - start_time}")
-        except:
-            print("Unexpected error:", sys.exc_info())
-            LogUtils.delete_log()
+
+        start_time = time.time()
+        if '-ra' in args:
+            from src.modules.train import RiskAverseTrain
+
+            train = RiskAverseTrain(
+                episodes=episodes,
+                is_dynamic_rho=is_dynamic_rho
+            )
+            train.start_train()
+        elif '-dqn' in args:
+            from src.modules.train import Train
+
+            train = Train(
+                num_episode=episodes,
+                is_dynamic_rho=is_dynamic_rho,
+                reward_function_id=reward_function_id
+            )
+            train.start_train()
+        else:
+            print("Invalid arguments!")
+        end_time = time.time()
+        LogUtils.info("MAIN", f"Time: {end_time - start_time}")
+
+        # try:
+        #     start_time = time.time()
+        #     if '-ra' in args:
+        #         from src.modules.train import RiskAverseTrain
+        #         train = RiskAverseTrain(
+        #             episodes=episodes,
+        #             is_dynamic_rho=is_dynamic_rho
+        #         )
+        #         train.start_train()
+        #     elif '-dqn' in args:
+        #         from src.modules.train import Train
+        #         train = Train(
+        #             num_episode = episodes,
+        #             is_dynamic_rho = is_dynamic_rho,
+        #             reward_function_id = reward_function_id
+        #         )
+        #         train.start_train()
+        #     else:
+        #         print("Invalid arguments!")
+        #     end_time = time.time()
+        #     LogUtils.info("MAIN", f"Time: {end_time - start_time}")
+        # except:
+        #     print("Unexpected error:", sys.exc_info())
+        #     LogUtils.delete_log()
 
         LogUtils.info("MAIN", "END")
 

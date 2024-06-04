@@ -337,6 +337,7 @@ class Environment:
             #         if P * G_sp[v] > self.I[v]:
             #             R += - mu * self.T_s * math.log2(1 + (P * G_sp[v] - self.I[v]) / self.N_0)
 
+            
             state = (
                 v,
                 prev_E,

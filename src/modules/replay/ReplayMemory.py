@@ -13,6 +13,17 @@ class ReplayMemory(object):
         """Save a transition"""
         self.memory.append(Transition(*args))
 
+    def sample_sequence(self, batch_size, sequence_length):
+        batch = []
+
+        for _ in range(batch_size):
+            if len(self.memory) < sequence_length:
+                return []
+            index = RandomUtils.sample(range(len(self.memory) - sequence_length + 1), 1)[0]
+            batch.append(list(self.memory)[index:index + sequence_length])
+
+        return batch
+
     def sample(self, batch_size):
         return RandomUtils.sample(self.memory, batch_size)
 

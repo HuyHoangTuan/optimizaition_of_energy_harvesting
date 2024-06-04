@@ -14,7 +14,7 @@ from src.utils import LogUtils, RandomUtils
 
 from src.modules.environment import Environment
 from src.modules.model import DQNModel
-from src.modules.replay import ReplayMemory, Transition
+from src.modules.replay import PrioritizedReplayMemory, ReplayMemory, Transition
 from src.utils import Parser
 is_ipython = 'inline' in matplotlib.get_backend()
 if is_ipython:
@@ -72,7 +72,8 @@ class Train:
         self.target_net.eval()
 
         self.optimizer = optim.SGD(self.policy_net.parameters(), lr = self.learning_rate)
-        self.memory = ReplayMemory(100000)
+        # self.memory = ReplayMemory(100000)
+        self.memory = PrioritizedReplayMemory(100000)
 
         self.eps_threshold = 500 if self.is_dynamic_rho is False else 400 # Episode
         self.steps_done = 0
@@ -139,6 +140,8 @@ class Train:
 
         plt.figure(num = 1, figsize = (16, 9), dpi = 120)
         parser = None
+        old_label = 'Hard update + RM + DQN'
+        new_label = 'soft update + PRM + LSTM-DQN'
         if show_result is False:
             self.SU_rewards_t.append(torch.mean(torch.tensor(self.SU_rewards, dtype = torch.float)))
             self.mean_rhos_t.append(torch.mean(torch.tensor(self.mean_rhos, dtype = torch.float32)))
@@ -147,7 +150,9 @@ class Train:
             self.mean_transmit_action_t.append(torch.mean(torch.tensor(self.mean_transmit_action, dtype = torch.float)))
             plt.clf()
         else:
-            parser = Parser('dqn', f'res/result/base_result_{self.env.NumSU}.log')
+            # parser = Parser('dqn', f'res/result/base_result_{self.env.NumSU}.log')
+            parser = Parser('dqn', f'res/result/base_result_hard_update_{self.env.NumSU}.log')
+            base_rewards, base_rates, base_loss, base_rho, base_transmit_actions, base_P = parser.get_data()
             plt.clf()
         # Plot reward
         # ---------------------------------------------------------------------
@@ -156,11 +161,22 @@ class Train:
         plt.title('Rewards')
         plt.ylabel('Reward')
 
-        rewards_t = torch.tensor(self.rewards, dtype = torch.float)
-        plt.plot(rewards_t.numpy())
+        if show_result == False:
+            rewards_t = torch.tensor(self.rewards, dtype = torch.float)
+            plt.plot(rewards_t.numpy())
+        else:
+            if parser != None:
+                base_mean_rewards_plt = []
+                for i in range(len(base_rewards)):
+                    base_mean_rewards_plt.append(torch.mean(torch.tensor(base_rewards[:i][-self.num_to_get_mean:], dtype=torch.float32)))
+                plt.plot(torch.tensor(base_mean_rewards_plt, dtype=torch.float32).numpy(), label=old_label)
+        
 
         SU_rewards_t = torch.tensor(self.SU_rewards_t, dtype = torch.float)
-        plt.plot(SU_rewards_t.numpy())
+        plt.plot(SU_rewards_t.numpy(), label=new_label)
+
+        if show_result == True:
+            plt.legend(loc='best')
 
         # ---------------------------------------------------------------------
 
@@ -171,11 +187,22 @@ class Train:
         plt.title('Rates')
         plt.ylabel('Rate value')
 
-        rates_t = torch.tensor(self.sum_rates, dtype=torch.float)
-        plt.plot(rates_t.numpy())
+        
+        if show_result == False:
+            rates_t = torch.tensor(self.sum_rates, dtype=torch.float)
+            plt.plot(rates_t.numpy())
+        else:
+            if parser != None:
+                base_mean_rates_plt = []
+                for i in range(len(base_rates)):
+                    base_mean_rates_plt.append(torch.mean(torch.tensor(base_rates[:i][-self.num_to_get_mean:], dtype=torch.float32)))
+                plt.plot(torch.tensor(base_mean_rates_plt, dtype=torch.float32).numpy(), label=old_label)
 
         mean_sum_rates_t = torch.tensor(self.mean_sum_rates_t, dtype=torch.float)
-        plt.plot(mean_sum_rates_t.numpy())
+        plt.plot(mean_sum_rates_t.numpy(), label=new_label)
+
+        if show_result == True:
+            plt.legend(loc='best')
 
         # ---------------------------------------------------------------------
 
@@ -198,11 +225,21 @@ class Train:
         plt.title('Transmit Action')
         plt.ylabel('Number')
 
-        transmit_action_t = torch.tensor(self.transmit_action, dtype = torch.float)
-        plt.plot(transmit_action_t.numpy())
+        if show_result == False:
+            transmit_action_t = torch.tensor(self.transmit_action, dtype = torch.float)
+            plt.plot(transmit_action_t.numpy())
+        else:
+            if parser != None:
+                base_mean_ta_plt = []
+                for i in range(len(base_transmit_actions)):
+                    base_mean_ta_plt.append(torch.mean(torch.tensor(base_transmit_actions[:i][-self.num_to_get_mean:], dtype=torch.float32)))
+                plt.plot(torch.tensor(base_mean_ta_plt, dtype=torch.float32).numpy(), label=old_label)
 
         mean_transmit_action_t = torch.tensor(self.mean_transmit_action_t, dtype = torch.float)
-        plt.plot(mean_transmit_action_t.numpy())
+        plt.plot(mean_transmit_action_t.numpy(), label=new_label)
+
+        if show_result == True:
+            plt.legend(loc='best')
 
         # mean_rhos_t = torch.tensor(self.mean_rhos_t, dtype = torch.float32)
         # print(mean_rhos_t.numpy().astype(np.float32))
@@ -218,8 +255,25 @@ class Train:
         plt.ylabel('Loss value')
         ax.set_ylim(0, 10)
 
-        losses_t = torch.tensor(self.losses, dtype = torch.float)
-        plt.plot(losses_t.numpy())
+        
+        if show_result == False:
+            losses_t = torch.tensor(self.losses, dtype = torch.float)
+            plt.plot(losses_t.numpy())
+        else:
+            if parser != None:
+                base_mean_loss_plt = []
+                for i in range(len(base_loss)):
+                    base_mean_loss_plt.append(torch.mean(torch.tensor(base_loss[:i][-self.num_to_get_mean:], dtype=torch.float32)))
+                plt.plot(torch.tensor(base_mean_loss_plt, dtype=torch.float32).numpy(), label=old_label)
+
+                proposed_mean_loss_plt = []
+                for i in range(len(self.losses)):
+                    proposed_mean_loss_plt.append(torch.mean(torch.tensor(self.losses[:i][-self.num_to_get_mean:], dtype=torch.float32)))
+                plt.plot(torch.tensor(proposed_mean_loss_plt, dtype=torch.float32).numpy(), label=new_label)
+
+        if show_result == True:
+            plt.legend(loc='best')
+
         # ---------------------------------------------------------------------
 
         # Plot Transmission Power between SU-Rx and SU-Tx
@@ -229,11 +283,22 @@ class Train:
         plt.title('P: SU-Rx <-> SU-Tx')
         plt.ylabel('Values')
 
-        P_t = torch.tensor(self.P_t, dtype=torch.float)
-        plt.plot(P_t.numpy())
+    
+        if show_result == False:
+            P_t = torch.tensor(self.P_t, dtype=torch.float)
+            plt.plot(P_t.numpy())
+        else:
+            if parser != None:
+                base_mean_p_plt = []
+                for i in range(len(base_P)):
+                    base_mean_p_plt.append(torch.mean(torch.tensor(base_P[:i][-self.num_to_get_mean:], dtype=torch.float32)))
+                plt.plot(torch.tensor(base_mean_p_plt, dtype=torch.float32).numpy(), label=old_label)
 
         mean_P_t = torch.tensor(self.mean_P_t, dtype=torch.float)
-        plt.plot(mean_P_t.numpy())
+        plt.plot(mean_P_t.numpy(), label=new_label)
+
+        if show_result == True:
+            plt.legend(loc='best')
 
         # ---------------------------------------------------------------------
 
@@ -272,11 +337,52 @@ class Train:
             else:
                 display.display(plt.gcf())
 
+    # def optimize_model(self):
+    #     if len(self.memory) < self.batch_size:
+    #         return 0
+    #
+    #     transitions = self.memory.sample(self.batch_size)
+    #
+    #     batch = Transition(*zip(*transitions))
+    #     non_final_mask = torch.tensor(
+    #         tuple(
+    #             map(
+    #                 lambda s: s is not None,
+    #                 batch.next_state
+    #             )
+    #         ),
+    #         device = self.device,
+    #         dtype = torch.bool
+    #     )
+    #     non_final_next_states = torch.cat([s for s in batch.next_state if s is not None])
+    #
+    #     state_batch = torch.cat(batch.state)
+    #     action_batch = torch.cat(batch.action)
+    #     reward_batch = torch.cat(batch.reward)
+    #
+    #     # print(state_batch.shape)
+    #     state_action_values = self.policy_net(state_batch).gather(1, action_batch)
+    #     next_state_values = torch.zeros(self.batch_size, device = self.device)
+    #     with torch.no_grad():
+    #         next_state_values[non_final_mask] = self.target_net(non_final_next_states).max(1).values
+    #
+    #     expected_state_action_values = (next_state_values * self.gamma) + reward_batch
+    #
+    #     self.optimizer.zero_grad()
+    #     criterion = nn.MSELoss()
+    #     loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
+    #
+    #     loss.backward()
+    #
+    #     torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 1.0)
+    #     self.optimizer.step()
+    #     self.steps_done += 1
+    #     return loss
+
     def optimize_model(self):
         if len(self.memory) < self.batch_size:
             return 0
-
-        transitions = self.memory.sample(self.batch_size)
+        transitions, indices, weights = self.memory.sample(self.batch_size)
         batch = Transition(*zip(*transitions))
         non_final_mask = torch.tensor(
             tuple(
@@ -304,11 +410,17 @@ class Train:
         self.optimizer.zero_grad()
         criterion = nn.MSELoss()
         loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
+        loss = torch.tensor(weights, device=self.device) * loss
+        loss = loss.mean()
 
         loss.backward()
 
         torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 1.0)
         self.optimizer.step()
+
+        priorities = torch.abs(state_action_values - expected_state_action_values.unsqueeze(1)).detach().cpu().numpy()
+        self.memory.update_priorities(indices, priorities)
+
         self.steps_done += 1
         return loss
 
@@ -381,12 +493,13 @@ class Train:
                 #     f'sample: {self.sample[-1]}, '
                 # )
                 if done:
-                    if i_episode % 5 == 0:
-                        _dict = {}
-                        for key in self.policy_net.state_dict():
-                            _dict[key] = self.policy_net.state_dict()[key] * self.tau + self.target_net.state_dict()[
-                                key] * (1 - self.tau)
-                        self.target_net.load_state_dict(_dict)
+                    with torch.no_grad():
+                        if i_episode % 5 == 0:
+                            _dict = {}
+                            for key in self.policy_net.state_dict():
+                                _dict[key] = self.policy_net.state_dict()[key] * self.tau + self.target_net.state_dict()[
+                                    key] * (1 - self.tau)
+                            self.target_net.load_state_dict(_dict)
                     break
 
             LogUtils.info(
