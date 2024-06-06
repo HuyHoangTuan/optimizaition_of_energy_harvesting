@@ -135,195 +135,136 @@ class Train:
                 dtype = torch.long
             )
 
-    def plot_rewards(self, show_result = False):
+    def _plot(self, **kwargs):
+        
+        title = kwargs['title']
+        ylabel = kwargs['ylabel']
+        is_need_mean = kwargs['is_need_mean']
+        ylim = kwargs['ylim']
 
+        old_label = 'Baseline + Soft update + RM'
+        old_line_style = '-.'
+        new_label = 'Baseline + Hard update + RM'
+        new_line_style = '-'
+
+        row = 3
+        column = 2
+
+        idx = kwargs['idx']
+        data = kwargs['data']
+        parser_data = kwargs['parser_data']
+
+        ax = plt.subplot(row, column, idx)
+        if ylim != None:
+            ax.set_ylim(0, 10)
+        
+        plt.title(title)
+        plt.ylabel(ylabel)
+        
+
+        if parser_data == None:
+            data_t = torch.tensor(data, dtype=torch.float)
+            plt.plot(data_t.numpy())
+        else:
+            mean_parser_t = []
+            for i in range(len(parser_data)):
+                mean_parser_t.append(torch.mean(torch.tensor(parser_data[:i][-self.num_to_get_mean:], dtype=torch.float32)))
+            plt.plot(torch.tensor(mean_parser_t, dtype=torch.float32).numpy(), label=old_label, ls=old_line_style, lineWidth=3)
+
+            plt.legend(loc='best')
+            ax.grid()
+        
+        if is_need_mean is True:
+            mean_t = []
+            for i in range(len(data)):
+                mean_t.append(torch.mean(torch.tensor(data[:i][-self.num_to_get_mean:], dtype=torch.float32)))
+            plt.plot(torch.tensor(mean_t, dtype=torch.float32).numpy(), label=new_label, ls=new_line_style, lineWidth=3)
+
+    def plot_rewards(self, show_result = False):
         plt.figure(num=1, figsize=(16, 9), dpi=120)
         parser = None
+
+        base_rewards = None
+        base_rates = None
+        base_loss = None
+        base_transmit_actions = None
+        base_P = None
+
+        row=3
+        column=2
         if show_result is False:
-            self.SU_rewards_t.append(torch.mean(torch.tensor(self.SU_rewards, dtype=torch.float)))
-            self.mean_rhos_t.append(torch.mean(torch.tensor(self.mean_rhos, dtype=torch.float32)))
-            self.mean_sum_rates_t.append(torch.mean(torch.tensor(self.mean_sum_rates, dtype=torch.float)))
+            # self.SU_rewards_t.append(torch.mean(torch.tensor(self.SU_rewards, dtype=torch.float)))
+            # self.mean_rhos_t.append(torch.mean(torch.tensor(self.mean_rhos, dtype=torch.float32)))
+            # self.mean_sum_rates_t.append(torch.mean(torch.tensor(self.mean_sum_rates, dtype=torch.float)))
             # self.mean_gs_t.append(torch.mean(torch.tensor(self.mean_gs, dtype = torch.float)))
-            self.mean_transmit_action_t.append(torch.mean(torch.tensor(self.mean_transmit_action, dtype=torch.float)))
+            # self.mean_transmit_action_t.append(torch.mean(torch.tensor(self.mean_transmit_action, dtype=torch.float)))
             plt.clf()
         else:
+            # parser = Parser('dqn', f'res/result/base_result_{self.env.NumSU}.log')
             parser = Parser('dqn', f'res/result/base_result_{self.env.NumSU}.log')
             base_rewards, base_rates, base_loss, base_rho, base_transmit_actions, base_P = parser.get_data()
             plt.clf()
-        # Plot reward
-        # ---------------------------------------------------------------------
-        plt.subplot(3, 2, 1)
 
-        plt.title('Rewards')
-        plt.ylabel('Reward')
 
-        if show_result == False:
-            rewards_t = torch.tensor(self.rewards, dtype=torch.float)
-            plt.plot(rewards_t.numpy())
-        else:
-            if parser != None:
-                base_mean_rewards_plt = []
-                for i in range(len(base_rewards)):
-                    base_mean_rewards_plt.append(
-                        torch.mean(torch.tensor(base_rewards[:i][-self.num_to_get_mean:], dtype=torch.float32)))
-                plt.plot(torch.tensor(base_mean_rewards_plt, dtype=torch.float32).numpy(), label='Soft Update')
+        self._plot(
+            idx=1,
+            is_need_mean=True,
+            title='reward',
+            ylabel='value',
+            ylim=None,
+            data=self.rewards,
+            parser_data=base_rewards
+        )
 
-        SU_rewards_t = torch.tensor(self.SU_rewards_t, dtype=torch.float)
-        plt.plot(SU_rewards_t.numpy(), label='Hard Update')
+        self._plot(
+            idx=2,
+            is_need_mean=True,
+            title='rate',
+            ylabel='value',
+            ylim=None,
+            data=self.sum_rates,
+            parser_data=base_rates
+        )
+        
+        self._plot(
+            idx=3,
+            is_need_mean=True,
+            title='transmission action',
+            ylabel='value',
+            ylim=None,
+            data=self.transmit_action,
+            parser_data=base_transmit_actions
+        )
 
-        if show_result == True:
-            plt.legend(loc='best')
+        self._plot(
+            idx=4,
+            is_need_mean=False,
+            title='epsilon',
+            ylabel='value',
+            ylim=None,
+            data=self.eps_e,
+            parser_data=None
+        )
 
-        # ---------------------------------------------------------------------
+        self._plot(
+            idx=5,
+            is_need_mean=True,
+            title='loss',
+            ylabel='value',
+            ylim=10,
+            data=self.losses,
+            parser_data=base_loss
+        )
 
-        # Plot Sum rate
-        # ---------------------------------------------------------------------
-        plt.subplot(3, 2, 2)
-        #
-        plt.title('Rates')
-        plt.ylabel('Rate value')
-
-        if show_result == False:
-            rates_t = torch.tensor(self.sum_rates, dtype=torch.float)
-            plt.plot(rates_t.numpy())
-        else:
-            if parser != None:
-                base_mean_rates_plt = []
-                for i in range(len(base_rates)):
-                    base_mean_rates_plt.append(
-                        torch.mean(torch.tensor(base_rates[:i][-self.num_to_get_mean:], dtype=torch.float32)))
-                plt.plot(torch.tensor(base_mean_rates_plt, dtype=torch.float32).numpy(), label='Soft Update')
-
-        mean_sum_rates_t = torch.tensor(self.mean_sum_rates_t, dtype=torch.float)
-        plt.plot(mean_sum_rates_t.numpy(), label='Hard Update')
-
-        if show_result == True:
-            plt.legend(loc='best')
-
-        # ---------------------------------------------------------------------
-
-        # Plot EPS
-        # ---------------------------------------------------------------------
-        plt.subplot(3, 2, 4)
-        #
-        plt.title('Epsilon')
-        plt.ylabel('Epsilon value')
-
-        eps_t = torch.tensor(self.eps_e, dtype=torch.float)
-        plt.plot(eps_t.numpy())
-
-        # ---------------------------------------------------------------------
-
-        # Plot rho
-        # ---------------------------------------------------------------------
-        plt.subplot(3, 2, 3)
-
-        plt.title('Transmit Action')
-        plt.ylabel('Number')
-
-        if show_result == False:
-            transmit_action_t = torch.tensor(self.transmit_action, dtype=torch.float)
-            plt.plot(transmit_action_t.numpy())
-        else:
-            if parser != None:
-                base_mean_ta_plt = []
-                for i in range(len(base_transmit_actions)):
-                    base_mean_ta_plt.append(torch.mean(
-                        torch.tensor(base_transmit_actions[:i][-self.num_to_get_mean:], dtype=torch.float32)))
-                plt.plot(torch.tensor(base_mean_ta_plt, dtype=torch.float32).numpy(), label='Soft Update')
-
-        mean_transmit_action_t = torch.tensor(self.mean_transmit_action_t, dtype=torch.float)
-        plt.plot(mean_transmit_action_t.numpy(), label='Hard Update')
-
-        if show_result == True:
-            plt.legend(loc='best')
-
-        # mean_rhos_t = torch.tensor(self.mean_rhos_t, dtype = torch.float32)
-        # print(mean_rhos_t.numpy().astype(np.float32))
-        # if self.is_dynamic_rho is True:
-        #     plt.plot(mean_rhos_t.numpy())
-
-        # ---------------------------------------------------------------------
-
-        # Plot loss
-        # ---------------------------------------------------------------------
-        ax = plt.subplot(3, 2, 5)
-        plt.title('Loss')
-        plt.ylabel('Loss value')
-        # ax.set_ylim(0, 10)
-
-        if show_result == False:
-            losses_t = torch.tensor(self.losses, dtype=torch.float)
-            plt.plot(losses_t.numpy())
-        else:
-            if parser != None:
-                base_mean_loss_plt = []
-                for i in range(len(base_loss)):
-                    base_mean_loss_plt.append(
-                        torch.mean(torch.tensor(base_loss[:i][-self.num_to_get_mean:], dtype=torch.float32)))
-                plt.plot(torch.tensor(base_mean_loss_plt, dtype=torch.float32).numpy(), label='Soft Update')
-
-                proposed_mean_loss_plt = []
-                for i in range(len(self.losses)):
-                    proposed_mean_loss_plt.append(
-                        torch.mean(torch.tensor(self.losses[:i][-self.num_to_get_mean:], dtype=torch.float32)))
-                plt.plot(torch.tensor(proposed_mean_loss_plt, dtype=torch.float32).numpy(), label='Hard Update')
-
-        if show_result == True:
-            plt.legend(loc='best')
-
-        # ---------------------------------------------------------------------
-
-        # Plot Transmission Power between SU-Rx and SU-Tx
-        # ---------------------------------------------------------------------
-        plt.subplot(3, 2, 6)
-
-        plt.title('P: SU-Rx <-> SU-Tx')
-        plt.ylabel('Values')
-
-        if show_result == False:
-            P_t = torch.tensor(self.P_t, dtype=torch.float)
-            plt.plot(P_t.numpy())
-        else:
-            if parser != None:
-                base_mean_p_plt = []
-                for i in range(len(base_P)):
-                    base_mean_p_plt.append(
-                        torch.mean(torch.tensor(base_P[:i][-self.num_to_get_mean:], dtype=torch.float32)))
-                plt.plot(torch.tensor(base_mean_p_plt, dtype=torch.float32).numpy(), label='Soft Update')
-
-        mean_P_t = torch.tensor(self.mean_P_t, dtype=torch.float)
-        plt.plot(mean_P_t.numpy(), label='Hard Update')
-
-        if show_result == True:
-            plt.legend(loc='best')
-
-        # ---------------------------------------------------------------------
-
-        # Plot Reward Type PU2
-        # ---------------------------------------------------------------------
-        # plt.subplot(3, 2, 6)
-        #
-        # if show_result is False:
-        #     plt.title('PU2 Reward Type')
-        #     # plt.ylim(0, self.env.N)
-        # else:
-        #     plt.title('PU2 Reward Type (Sum)')
-        # plt.ylabel('Number')
-        #
-        # categories = ['0', '1', '2']
-        #
-        # PU2_R_O_types = np.array(self.R_0_types)[:, 0]
-        # PU2_R_1_types = np.array(self.R_1_types)[:, 0]
-        # PU2_R_2_types = np.array(self.R_2_types)[:, 0]
-        # if show_result is False:
-        #     PU2_R_types = np.array([PU2_R_O_types[-1], PU2_R_1_types[-1], PU2_R_2_types[-1]])
-        # else:
-        #     PU2_R_types = np.array([PU2_R_O_types.sum(), PU2_R_1_types.sum(), PU2_R_2_types.sum()])
-        #
-        # plt.bar(categories, PU2_R_types)
-        # ---------------------------------------------------------------------
-
+        self._plot(
+            idx=6,
+            is_need_mean=True,
+            title='transmission power',
+            ylabel='value',
+            ylim=None,
+            data=self.P_t,
+            parser_data=base_P
+        )
         plt.tight_layout()
         plt.pause(1 / 1024)  # pause a bit so that plots are updated
         # ---------------------------------------------------------------------
@@ -427,7 +368,7 @@ class Train:
                     count_loss += 1
 
 
-
+                
                 # LogUtils.info(
                 #     'TRAIN_EPISODE',
                 #     f'({i_episode + 1}): '
