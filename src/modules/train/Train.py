@@ -169,16 +169,17 @@ class Train:
             mean_parser_t = []
             for i in range(len(parser_data)):
                 mean_parser_t.append(torch.mean(torch.tensor(parser_data[:i][-self.num_to_get_mean:], dtype=torch.float32)))
-            plt.plot(torch.tensor(mean_parser_t, dtype=torch.float32).numpy(), label=old_label, ls=old_line_style, lineWidth=3)
-
-            plt.legend(loc='best')
-            ax.grid()
+            plt.plot(torch.tensor(mean_parser_t, dtype=torch.float32).numpy(), label=old_label, ls=old_line_style, linewidth=3)
         
         if is_need_mean is True:
             mean_t = []
             for i in range(len(data)):
                 mean_t.append(torch.mean(torch.tensor(data[:i][-self.num_to_get_mean:], dtype=torch.float32)))
-            plt.plot(torch.tensor(mean_t, dtype=torch.float32).numpy(), label=new_label, ls=new_line_style, lineWidth=3)
+            plt.plot(torch.tensor(mean_t, dtype=torch.float32).numpy(), label=new_label, ls=new_line_style, linewidth=3)
+
+        if parser_data != None:
+            plt.legend(loc='best')
+            ax.grid()
 
     def plot_rewards(self, show_result = False):
         plt.figure(num=1, figsize=(16, 9), dpi=120)
@@ -190,8 +191,6 @@ class Train:
         base_transmit_actions = None
         base_P = None
 
-        row=3
-        column=2
         if show_result is False:
             # self.SU_rewards_t.append(torch.mean(torch.tensor(self.SU_rewards, dtype=torch.float)))
             # self.mean_rhos_t.append(torch.mean(torch.tensor(self.mean_rhos, dtype=torch.float32)))
@@ -251,7 +250,7 @@ class Train:
             is_need_mean=True,
             title='loss',
             ylabel='value',
-            ylim=10,
+            ylim=None,
             data=self.losses,
             parser_data=base_loss
         )
@@ -266,7 +265,7 @@ class Train:
             parser_data=base_P
         )
         plt.tight_layout()
-        plt.pause(1 / 1024)  # pause a bit so that plots are updated
+        plt.pause(1 / self.num_episode)  # pause a bit so that plots are updated
         # ---------------------------------------------------------------------
 
         if is_ipython:
@@ -367,7 +366,7 @@ class Train:
                     sum_loss += loss.item()
                     count_loss += 1
 
-
+                # self.target_net.load_state_dict(self.policy_net.state_dict())
                 
                 # LogUtils.info(
                 #     'TRAIN_EPISODE',
@@ -412,34 +411,33 @@ class Train:
             self.eps_e.append(torch.mean(torch.tensor(self.eps, dtype = torch.float)))
             self.eps = []
 
-            self.mean_sum_rates.append(sum_rate)
-            if len(self.mean_sum_rates) > self.num_to_get_mean:
-                self.mean_sum_rates = self.mean_sum_rates[1:]
+            # self.mean_sum_rates.append(sum_rate)
+            # if len(self.mean_sum_rates) > self.num_to_get_mean:
+            #     self.mean_sum_rates = self.mean_sum_rates[1:]
 
-            self.SU_rewards.append(sum_reward)
-            if len(self.SU_rewards) > self.num_to_get_mean:
-                self.SU_rewards = self.SU_rewards[1:]
+            # self.SU_rewards.append(sum_reward)
+            # if len(self.SU_rewards) > self.num_to_get_mean:
+            #     self.SU_rewards = self.SU_rewards[1:]
 
-            self.mean_rhos.append(sum_Rho / self.env.N)
-            if len(self.mean_rhos) > self.num_to_get_mean:
-                self.mean_rhos = self.mean_rhos[1:]
+            # self.mean_rhos.append(sum_Rho / self.env.N)
+            # if len(self.mean_rhos) > self.num_to_get_mean:
+            #     self.mean_rhos = self.mean_rhos[1:]
 
             # self.gs_t.append(sum_gs / self.env.N)
             # self.mean_gs.append(sum_gs / self.env.N)
             # if len(self.mean_gs) > self.num_to_get_mean:
             #     self.mean_gs = self.mean_gs[1:]
-
-            for _P in _P_t:
-                self.P_t.append(_P)
-                self.mean_P_t.append(torch.mean(torch.tensor(self.P_t[-self.num_to_get_mean:], dtype=torch.float)))
+            self.P_t.extend(_P_t)
+            # for _P in _P_t:
+            #     self.mean_P_t.append(torch.mean(torch.tensor(self.P_t[-self.num_to_get_mean:], dtype=torch.float)))
             # self.mean_P.extend(_P_t)
 
             self.transmit_action.append(sum_transmit_actions_episode)
-            self.mean_transmit_action.append(sum_transmit_actions_episode)
-            if len(self.mean_transmit_action) > self.num_to_get_mean:
-                self.mean_transmit_action = self.mean_transmit_action[1:]
+            # self.mean_transmit_action.append(sum_transmit_actions_episode)
+            # if len(self.mean_transmit_action) > self.num_to_get_mean:
+            #     self.mean_transmit_action = self.mean_transmit_action[1:]
 
-            self.plot_rewards()
+            # self.plot_rewards()
 
             # scheduler.step()
 

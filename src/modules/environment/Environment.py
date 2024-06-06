@@ -6,7 +6,7 @@ from src.utils import LogUtils, RandomUtils
 class Environment:
     def __init__(
             self,
-            NumSU = 1,
+            NumSU = 10,
             NumPU = 2,
             P_max = 1,
             Xi_s = 0.1,
@@ -138,7 +138,7 @@ class Environment:
         # action spaces
         # Huy's  edition
         k = [0, 1]
-        delta_P = 1.0 / 32.0
+        delta_P = 1.0 / 16.0
         P = [i * delta_P for i in range(0, int(0.5 / delta_P) * 2 + 1)]
 
         if self.Is_Dynamic_Rho == True:
@@ -310,6 +310,8 @@ class Environment:
                     if P * G_sp[v] <= self.I[v]:
                         P_dbw = self._convert_2_dbW(P)
                         P_p_dbw = self._convert_2_dbW(P_p[v])
+                        # P_dbw = P
+                        # P_p_dbw = P_p[v]
 
                         if v == 1:
                             R = mu * self.T_s * math.log2(1 + (P_dbw * G_s) / (self.N_0 + P_p_dbw * G_pr[v] + self._calc_Interference_Rx_Tx(P_dbw, SU, G_rt)))
