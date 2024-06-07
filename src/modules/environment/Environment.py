@@ -7,7 +7,7 @@ from src.utils import LogUtils, RandomUtils
 class Environment:
     def __init__(
             self,
-            NumSU=1,
+            NumSU=10,
             NumPU=2,
             P_max=1,
             Xi_s=0.1,
@@ -139,7 +139,7 @@ class Environment:
         # action spaces
         # Huy's  edition
         k = [0, 1]
-        delta_P = 1.0 / 32.0
+        delta_P = 1.0 / 16.0
         P = [i * delta_P for i in range(0, int(0.5 / delta_P) * 2 + 1)]
 
         if self.Is_Dynamic_Rho == True:
@@ -274,6 +274,7 @@ class Environment:
         Rs = 0
         Rates = 0
         Gss = 0
+        Rate_bounds = 0
 
         self._Time_Slot += 1
         v = self._get_v(self._Time_Slot)
@@ -319,6 +320,16 @@ class Environment:
                 else:
                     if k == 1 and mu * P * self.T_s > C:
                         R = 0
+
+            C_bound = max(0.0 , min(prev_C + prev_E, 0.5))
+            P_bound = min(C_bound/(mu * self.T_s), self.I[v] / G_sp[v])
+            P_bound_dbw = self._convert_2_dbW(P_bound)
+            P_p_bound_dbw = self._convert_2_dbW(P_p[v])
+            if v == 1:
+                rate_bound = mu * self.T_s * math.log2(1 + (P_bound_dbw * G_s) / (self.N_0 + P_p_bound_dbw * G_pr[v] + self._calc_Interference_Rx_Tx(P_bound_dbw, SU, G_rt)))
+            else:
+                rate_bound = mu * self.T_s * math.log2(1 + (P_bound_dbw * G_s) / (self.N_0 + self._calc_Interference_Rx_Tx(P_bound_dbw, SU, G_rt)))
+            Rate_bounds += rate_bound
             # elif self.Reward_Function_ID == 1:
             #     P_dbw = self._convert_2_dbW(P)
             #     P_p_dbw = self._convert_2_dbW(P_p[v])
@@ -366,7 +377,7 @@ class Environment:
         reward = (
             Rs,
             Rates,
-            0
+            Rate_bounds
         )
 
         return state, action, reward, self._Time_Slot
