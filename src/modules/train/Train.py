@@ -83,31 +83,35 @@ class Train:
         # visualization
         self.num_to_get_mean = 100
         self.rewards = []
-        self.SU_rewards = []
-        self.R_0_types = []
-        self.R_1_types = []
-        self.R_2_types = []
+        # self.SU_rewards = []
+        # self.R_0_types = []
+        # self.R_1_types = []
+        # self.R_2_types = []
         self.eps = []
         self.eps_e = []
         self.rhos = []
-        self.mean_rhos = []
+        self.rhos = []
+        if self.is_dynamic_rho is True:
+            for i in range(self.env.NumSU):
+                self.rhos.append([])
+        # self.mean_rhos = []
         self.sample = []
         self.sum_rates = []
-        self.mean_sum_rates = []
+        # self.mean_sum_rates = []
         self.actions = []
         self.losses = []
 
         # plt
-        self.SU_rewards_t = [0]
-        self.mean_rhos_t = []
-        self.mean_sum_rates_t = [0]
-        self.mean_loss_t = [0]
+        # self.SU_rewards_t = [0]
+        # self.mean_rhos_t = []
+        # self.mean_sum_rates_t = [0]
+        # self.mean_loss_t = [0]
         self.P_t = [0]
         # self.mean_P = []
-        self.mean_P_t = [0]
+        # self.mean_P_t = [0]
         self.transmit_action = [0]
-        self.mean_transmit_action = []
-        self.mean_transmit_action_t = [0]
+        # self.mean_transmit_action = []
+        # self.mean_transmit_action_t = [0]
 
     def select_action(self, state, episode = 0):
         sample = RandomUtils.custom_random()
@@ -144,9 +148,9 @@ class Train:
         is_need_mean = kwargs['is_need_mean']
         ylim = kwargs['ylim']
 
-        old_label = 'Baseline + Soft update + RM'
+        old_label = 'Baseline'
         old_line_style = '-.'
-        new_label = 'Baseline + Hard update + RM'
+        new_label = 'Baseline + Dynamic Rho'
         new_line_style = '-'
 
         row = 3
@@ -169,9 +173,10 @@ class Train:
             plt.plot(data_t.numpy())
         else:
             mean_parser_t = []
-            for i in range(len(parser_data)):
-                mean_parser_t.append(torch.mean(torch.tensor(parser_data[:i][-self.num_to_get_mean:], dtype=torch.float32)))
-            plt.plot(torch.tensor(mean_parser_t, dtype=torch.float32).numpy(), label=old_label, ls=old_line_style, linewidth=3)
+            if type(parser_data) == list and len(parser_data) > 0:
+                for i in range(len(parser_data)):
+                    mean_parser_t.append(torch.mean(torch.tensor(parser_data[:i][-self.num_to_get_mean:], dtype=torch.float32)))
+                plt.plot(torch.tensor(mean_parser_t, dtype=torch.float32).numpy(), label=old_label, ls=old_line_style, linewidth=3)
         
         if is_need_mean is True:
             mean_t = []
@@ -238,17 +243,18 @@ class Train:
         )
 
         if self.is_dynamic_rho is True:
-            self._plot(
-                idx=4,
-                is_need_mean=True,
-                title='rho',
-                ylabel='value',
-                ylim=None,
-                data=self.rhos,
-                parser_data=base_rho,
-                extra_data=None,
-                is_need_extra_data=False
-            )
+            # print(base_rho)
+            for i in range(self.env.NumSU):
+                self._plot(
+                    idx=4,
+                    is_need_mean=True,
+                    title='rho',
+                    ylabel='value',
+                    ylim=None,
+                    data=self.rhos[i],
+                    parser_data= base_rho if i == self.env.NumSU - 1 else [],
+                    extra_data=None
+                )
         else:
             self._plot(
                 idx=4,
@@ -258,8 +264,7 @@ class Train:
                 ylim=None,
                 data=self.eps_e,
                 parser_data=None,
-                extra_data=None,
-                is_need_extra_data=False
+                extra_data=None
             )
 
         self._plot(
@@ -352,19 +357,27 @@ class Train:
             sum_transmit_actions_episode = 0
             count_loss = 0
             _P_t = []
+            rhos_t = []
+            for i in range(self.env.NumSU):
+                rhos_t.append([])
 
             for t in count():
                 action = self.select_action(state, i_episode)
-                observation, (k, P, Rho), (reward, rate, _), time_slot = self.env.step(action.item(), i_episode)
+                observation, (k, P, Rhos), (reward, rate, _), time_slot = self.env.step(action.item(), i_episode)
                 reward = torch.tensor([reward], dtype = torch.float32, device = self.device)
 
                 sum_rate += rate
                 sum_reward += reward.squeeze(0).item()
                 # sum_gs += gs
-                sum_Rho += Rho
+                # sum_Rho += Rho
                 sum_transmit_actions += 1 if k == 0 else 0
                 sum_transmit_actions_episode += 1 if k == 0 else 0
                 _P_t.append(P)
+                if  self.is_dynamic_rho is True:
+                    for i in range(self.env.NumSU):
+                        rhos_t[i].append(Rhos[i])
+                else:
+                    sum_Rho += Rhos
 
                 done = True if time_slot >= self.env.N else False
 
@@ -413,6 +426,7 @@ class Train:
                 f'rates: {sum_rate}, '
                 f'loss: {0 if count_loss <=0 else sum_loss / count_loss}, '
                 f'rho: {sum_Rho / self.env.N}, '
+                f'dynamic_rho: {rhos_t}, '
                 f'transmit_actions: {sum_transmit_actions_episode}, '
                 f'P: {_P_t}'
             )
@@ -421,7 +435,11 @@ class Train:
 
             self.sum_rates.append(sum_rate)
 
-            self.rhos.append(sum_Rho / self.env.N)
+            if self.is_dynamic_rho is True:
+                for i in range(self.env.NumSU):
+                    self.rhos[i].append(torch.mean(torch.tensor(rhos_t[i], dtype = torch.float)))
+            else:
+                self.rhos.append(sum_Rho / self.env.N)
 
             self.rewards.append(sum_reward)
 
