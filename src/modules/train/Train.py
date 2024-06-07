@@ -176,7 +176,7 @@ class Train:
             plt.plot(data_t.numpy())
         else:
             mean_parser_t = []
-            if type(parser_data) == list:
+            if type(parser_data) == list and len(parser_data) > 0:
                 for i in range(len(parser_data)):
                     mean_parser_t.append(torch.mean(torch.tensor(parser_data[:i][-self.num_to_get_mean:], dtype=torch.float32)))
                 plt.plot(torch.tensor(mean_parser_t, dtype=torch.float32).numpy(), label=old_label, ls=old_line_style, linewidth=3)
