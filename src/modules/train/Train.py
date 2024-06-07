@@ -152,7 +152,7 @@ class Train:
 
         old_label = 'Baseline'
         old_line_style = '--'
-        new_label = 'Proposed'
+        new_label = 'Proposed + Dynamic Rho'
         new_line_style = '-'
 
         row = 3
@@ -427,7 +427,11 @@ class Train:
                 # if self.steps_done % 12000 == 0:
                 #     self.target_net.load_state_dict(self.policy_net.state_dict())
 
-
+                # _dict = {}
+                # for key in self.policy_net.state_dict():
+                #     _dict[key] = self.policy_net.state_dict()[key] * self.tau + self.target_net.state_dict()[
+                #         key] * (1 - self.tau)
+                # self.target_net.load_state_dict(_dict)
 
                 # LogUtils.info(
                 #     'TRAIN_EPISODE',
@@ -446,7 +450,6 @@ class Train:
                             _dict[key] = self.policy_net.state_dict()[key] * self.tau + self.target_net.state_dict()[
                                 key] * (1 - self.tau)
                         self.target_net.load_state_dict(_dict)
-                        # self.target_net.load_state_dict(self.policy_net.state_dict())
                     break
 
             LogUtils.info(
