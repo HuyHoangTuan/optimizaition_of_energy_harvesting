@@ -25,6 +25,7 @@ class Train:
     def __init__(
             self,
             num_episode = 1600,
+            num_su = 1,
             is_dynamic_rho = False,
             reward_function_id = 0,
             batch_size = 64,
@@ -40,6 +41,7 @@ class Train:
         self.num_episode = num_episode
 
         self.env = Environment(
+            NumSU=num_su,
             Episode = self.num_episode,
             Dynamic_Rho = self.is_dynamic_rho,
             reward_function_id = self.reward_function_id
@@ -235,15 +237,30 @@ class Train:
             parser_data=base_transmit_actions
         )
 
-        self._plot(
-            idx=4,
-            is_need_mean=False,
-            title='epsilon',
-            ylabel='value',
-            ylim=None,
-            data=self.eps_e,
-            parser_data=None
-        )
+        if self.is_dynamic_rho is True:
+            self._plot(
+                idx=4,
+                is_need_mean=True,
+                title='rho',
+                ylabel='value',
+                ylim=None,
+                data=self.rhos,
+                parser_data=base_rho,
+                extra_data=None,
+                is_need_extra_data=False
+            )
+        else:
+            self._plot(
+                idx=4,
+                is_need_mean=False,
+                title='epsilon',
+                ylabel='value',
+                ylim=None,
+                data=self.eps_e,
+                parser_data=None,
+                extra_data=None,
+                is_need_extra_data=False
+            )
 
         self._plot(
             idx=5,
