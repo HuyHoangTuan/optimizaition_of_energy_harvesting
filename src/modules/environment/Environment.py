@@ -136,17 +136,24 @@ class Environment:
                     else:
                         self.g_rt[i][j].append(RandomUtils.rayleigh(Xi_s, self.N))
 
+        # rhos = [[Episode][SU][Time_Slot]]
+        self.rhos = []
+        for i in range(self.Episode):
+            self.rhos.append([])
+            for j in range(0, self.NumSU):
+                self.rhos[i].append(RandomUtils.uniform(0, 1.0, self.N))
+        
         # action spaces
         # Huy's  edition
         k = [0, 1]
         delta_P = 1.0 / 16.0
         P = [i * delta_P for i in range(0, int(0.5 / delta_P) * 2 + 1)]
-
-        if self.Is_Dynamic_Rho == True:
-            delta_Rho = 1.0 / 8.0
-            Rho = [i * delta_Rho for i in range(1, int(1.0 / delta_Rho))]
-        else:
-            Rho = [0.4]
+        Rho = [self.Rho]
+        # if self.Is_Dynamic_Rho == True:
+        #     delta_Rho = 1.0 / 8.0
+        #     Rho = [i * delta_Rho for i in range(1, int(1.0 / delta_Rho))]
+        # else:
+        #     Rho = [0.4]
         actions_space = np.array(np.meshgrid(k, P, Rho)).T.reshape(-1, 3)
         # if self.Is_Dynamic_Rho == True:
         #     actions_space = np.append(actions_space, np.array([[1, 1.0, 0]]), axis = 0)
@@ -167,6 +174,7 @@ class Environment:
         #   v,
         #   E,
         #   C,
+        #   Rho,
         #   p_p,
         #   # g_s,
         #   g_rt,
@@ -175,26 +183,49 @@ class Environment:
         #   g_ps
         #   )
         # (3 + self.NumPU + self.NumSU + 3 * self.NumPU)
-        self._Default_State = tuple(
-            chain(
-                *tuple(
-                    [
-                        (
-                            0,
-                            0,
-                            0,
-                            *tuple([0 for i in range(self.NumPU)]),
-                            # 0,
-                            *tuple([0 for i in range(self.NumSU)]),
-                            *tuple([0 for i in range(self.NumPU)]),
-                            *tuple([0 for i in range(self.NumPU)]),
-                            *tuple([0 for i in range(self.NumPU)])
-                        )
-                        for j in range(self.NumSU)
-                    ]
+        if self.Is_Dynamic_Rho is True:
+            self._Default_State = tuple(
+                chain(
+                    *tuple(
+                        [
+                            (
+                                0,
+                                0,
+                                0,
+                                0,
+                                *tuple([0 for i in range(self.NumPU)]),
+                                # 0,
+                                *tuple([0 for i in range(self.NumSU)]),
+                                *tuple([0 for i in range(self.NumPU)]),
+                                *tuple([0 for i in range(self.NumPU)]),
+                                *tuple([0 for i in range(self.NumPU)])
+                            )
+                            for j in range(self.NumSU)
+                        ]
+                    )
                 )
             )
-        )
+        else:
+            self._Default_State = tuple(
+                chain(
+                    *tuple(
+                        [
+                            (
+                                0,
+                                0,
+                                0,
+                                *tuple([0 for i in range(self.NumPU)]),
+                                # 0,
+                                *tuple([0 for i in range(self.NumSU)]),
+                                *tuple([0 for i in range(self.NumPU)]),
+                                *tuple([0 for i in range(self.NumPU)]),
+                                *tuple([0 for i in range(self.NumPU)])
+                            )
+                            for j in range(self.NumSU)
+                        ]
+                    )
+                )
+            )
 
         # records: (k, mu, E, C, P, g_s)
         self._Default_Record = (0, 0, 0, 0, 0, 0)
@@ -213,11 +244,11 @@ class Environment:
         k, _, _ = self.actions_space[action]
         return k
 
-    def _get_Rho(self, action):
-        _, _, Rho = self.actions_space[action]
-        if self.Is_Dynamic_Rho is False:
-            return self.Rho
-        return Rho
+    # def _get_Rho(self, action):
+    #     _, _, Rho = self.actions_space[action]
+    #     if self.Is_Dynamic_Rho is False:
+    #         return self.Rho
+    #     return Rho
 
     def _get_P(self, action):
         _, P, _ = self.actions_space[action]
@@ -275,16 +306,18 @@ class Environment:
         Rates = 0
         Gss = 0
         Rate_bounds = 0
+        Rhos = []
 
         self._Time_Slot += 1
         v = self._get_v(self._Time_Slot)
         k = self._get_k(action)
         P = self._get_P(action)
-        Rho = self._get_Rho(action)
+        # Rho = self._get_Rho(action)
 
         for SU in range(self.NumSU):
             prev_k, prev_mu, prev_E, prev_C, prev_P, prev_G_s = self._get_record(SU, self._Time_Slot - 1)
             # todo: change mu to
+            Rho = self.Rho if self.Is_Dynamic_Rho is False else self.rhos[episode][SU][self._Time_Slot - 1]
             mu = 1 - Rho
 
             G_s = self.g_s[episode][SU][self._Time_Slot - 1]
@@ -348,30 +381,45 @@ class Environment:
             #         if P * G_sp[v] > self.I[v]:
             #             R += - mu * self.T_s * math.log2(1 + (P * G_sp[v] - self.I[v]) / self.N_0)
 
-            state = (
-                v,
-                prev_E,
-                C,
-                *tuple(P_p),
-                # G_s,
-                *tuple(G_rt),
-                *tuple(G_sp),
-                *tuple(G_pr),
-                *tuple(G_ps)
-            )
+            if self.Is_Dynamic_Rho is True:
+                state = (
+                    v,
+                    prev_E,
+                    C,
+                    Rho,
+                    *tuple(P_p),
+                    # G_s,
+                    *tuple(G_rt),
+                    *tuple(G_sp),
+                    *tuple(G_pr),
+                    *tuple(G_ps)
+                )
+            else:
+                state = (
+                    v,
+                    prev_E,
+                    C,
+                    *tuple(P_p),
+                    # G_s,
+                    *tuple(G_rt),
+                    *tuple(G_sp),
+                    *tuple(G_pr),
+                    *tuple(G_ps)
+                )
 
             record = (k, mu, E, C, P, G_s)
             self._add_record(SU, record)
             states.append(state)
             Rs += R
             Gss += G_s
+            Rhos.append(Rho)
 
         state = tuple(chain(*tuple(states)))
 
         action = (
             k,
             P,
-            Rho
+            Rhos if self.Is_Dynamic_Rho is True else self.Rho
         )
 
         reward = (

@@ -76,7 +76,7 @@ class Train:
         self.optimizer = optim.SGD(self.policy_net.parameters(), lr = self.learning_rate)
         self.memory = ReplayMemory(100000)
 
-        self.eps_threshold = 500 if self.is_dynamic_rho is False else 512 # Episode
+        self.eps_threshold = 500 if self.is_dynamic_rho is False else 500 # Episode
         self.steps_done = 0
         self.eps_drop_rate = 0
         # visualization
@@ -89,6 +89,10 @@ class Train:
         self.eps = []
         self.eps_e = []
         self.rhos = []
+        if self.is_dynamic_rho is True:
+            for i in range(self.env.NumSU):
+                self.rhos.append([])
+        
         # self.mean_rhos = []
         self.sample = []
         self.sum_rates = []
@@ -205,6 +209,7 @@ class Train:
         base_loss = None
         base_transmit_actions = None
         base_P = None
+        base_rho = None
 
         if show_result is False:
             # self.SU_rewards_t.append(torch.mean(torch.tensor(self.SU_rewards, dtype=torch.float)))
@@ -215,7 +220,7 @@ class Train:
             plt.clf()
         else:
             # parser = Parser('dqn', f'res/result/base_result_{self.env.NumSU}.log')
-            parser = Parser('dqn', f'res/result/base_result_dynamic_rho_{self.env.NumSU}.log')
+            parser = Parser('dqn', f'res/result/base_result_{self.env.NumSU}.log')
             base_rewards, base_rates, base_loss, base_rho, base_transmit_actions, base_P = parser.get_data()
             plt.clf()
         
@@ -256,18 +261,19 @@ class Train:
         )
 
         if self.is_dynamic_rho is True:
-            print(base_rho)
-            self._plot(
-                idx=4,
-                is_need_mean=True,
-                title='rho',
-                ylabel='value',
-                ylim=None,
-                data=self.rhos,
-                parser_data=base_rho,
-                extra_data=None,
-                is_need_extra_data=False
-            )
+            # print(base_rho)
+            for i in range(self.env.NumSU):
+                self._plot(
+                    idx=4,
+                    is_need_mean=True,
+                    title='rho',
+                    ylabel='value',
+                    ylim=None,
+                    data=self.rhos[i],
+                    parser_data= base_rho if i == self.env.NumSU - 1 else [],
+                    extra_data=None,
+                    is_need_extra_data=False
+                )
         else:
             self._plot(
                 idx=4,
@@ -350,7 +356,7 @@ class Train:
 
         loss.backward()
 
-        torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 500.0)
+        # torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 500.0)
         self.optimizer.step()
         self.steps_done += 1
         return loss
@@ -377,21 +383,29 @@ class Train:
             sum_transmit_actions_episode = 0
             count_loss = 0
             _P_t = []
+            rhos_t = []
+            for i in range(self.env.NumSU):
+                rhos_t.append([])
 
             for t in count():
                 action = self.select_action(state, i_episode)
-                observation, (k, P, Rho), (reward, rate, bound), time_slot = self.env.step(action.item(), i_episode)
+                observation, (k, P, Rhos), (reward, rate, bound), time_slot = self.env.step(action.item(), i_episode)
                 reward = torch.tensor([reward], dtype = torch.float32, device = self.device)
 
                 sum_rate += rate
                 sum_reward += reward.squeeze(0).item()
                 # sum_gs += gs
-                sum_Rho += Rho
+                
                 sum_bound += bound
                 # sum_actions += 1
                 sum_transmit_actions += 1 if k == 0 else 0
                 sum_transmit_actions_episode += 1 if k == 0 else 0
                 _P_t.append(P)
+                if  self.is_dynamic_rho is True:
+                    for i in range(self.env.NumSU):
+                        rhos_t[i].append(Rhos[i])
+                else:
+                    sum_Rho += Rhos
 
                 done = True if time_slot >= self.env.N else False
 
@@ -442,6 +456,7 @@ class Train:
                 f'rates: {sum_rate}, '
                 f'loss: {0 if count_loss <=0 else sum_loss / count_loss}, '
                 f'rho: {sum_Rho / self.env.N}, '
+                f'dynamic_rho: {rhos_t}, '
                 f'transmit_actions: {sum_transmit_actions_episode}, '
                 f'P: {_P_t}'
             )
@@ -452,8 +467,12 @@ class Train:
 
             self.bounds.append(sum_bound)
 
-            self.rhos.append(sum_Rho / self.env.N)
-
+            if self.is_dynamic_rho is True:
+                for i in range(self.env.NumSU):
+                    self.rhos[i].append(torch.mean(torch.tensor(rhos_t[i], dtype = torch.float)))
+            else:
+                self.rhos.append(sum_Rho / self.env.N)
+            
             self.rewards.append(sum_reward)
 
             self.eps_e.append(torch.mean(torch.tensor(self.eps, dtype = torch.float)))
