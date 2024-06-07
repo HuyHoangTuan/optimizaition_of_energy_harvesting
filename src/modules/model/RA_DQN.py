@@ -15,6 +15,7 @@ class DQNs:
     ):
         self._device = device
         self._DQNs = []
+        self._target_DQNs = []
         self._N = []
         self._optimizers = []
         self._n_observation = n_observation
@@ -24,24 +25,38 @@ class DQNs:
             self._DQNs.append(
                 DQNModel(self._n_observation, self._n_action).to(device)
             )
+            self._target_DQNs.append(
+                DQNModel(self._n_observation, self._n_action).to(device)
+            )
             self._optimizers.append(
                 optim.SGD(self._DQNs[-1].parameters(), lr=alpha)
             )
             self._N.append({})
 
-    def __call__(self, idx=0):
-        return self._DQNs[idx]
+    def __call__(self, _type=0, idx=0):
+        if _type == 0: 
+            return self._DQNs[idx]
+        else:
+            return self._target_DQNs[idx]
 
     def loss(self, idx, values: Tensor, expected_values: Tensor):
         self._optimizers[idx].zero_grad()
         f = nn.MSELoss()
         _loss = f(values, expected_values)
         _loss.backward()
-        torch.nn.utils.clip_grad_value_(self._DQNs[idx].parameters(), 1)
+        # print(_loss)
+        # torch.nn.utils.clip_grad_value_(self._DQNs[idx].parameters(), 1)
         self._optimizers[idx].step()
 
         return _loss
 
+    def soft_update(self, idx):
+        _dict = {}
+        tau = 0.001
+        for key in self._DQNs[idx].state_dict():
+            _dict[key] = self._DQNs[idx].state_dict()[key] * tau + self._target_DQNs[idx].state_dict()[
+                key] * (1 - tau)
+        self._target_DQNs[idx].load_state_dict(_dict)
     # def get_learning_rate(self, idx, state_batch, action_batch):
     #     alphas = []
     #     size = state_batch.size()
