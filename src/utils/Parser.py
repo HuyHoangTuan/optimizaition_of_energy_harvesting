@@ -27,6 +27,7 @@ class Parser:
         for i in range(0, len(_list)):
             _list[i] = float(_list[i])
         return _list
+
     def _parse_for_dqn(self, _file):
         lines = _file.readlines()
         rewards = []

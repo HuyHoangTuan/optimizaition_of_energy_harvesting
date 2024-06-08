@@ -13,7 +13,7 @@ from os.path import exists
 from src.utils import LogUtils, RandomUtils
 
 from src.modules.environment import Environment
-from src.modules.model import DQNModel
+from src.modules.model import DQNModel, DRQNModel
 from src.modules.replay import ReplayMemory, Transition
 from src.utils import Parser
 is_ipython = 'inline' in matplotlib.get_backend()
@@ -34,10 +34,12 @@ class Train:
             eps_decay = 0.001,
             tau = 0.001,
             learning_rate = 0.003,  # alpha
+            is_rnn = False
     ):
         self.is_dynamic_rho = is_dynamic_rho
         self.reward_function_id = reward_function_id
         self.num_episode = num_episode
+        self.is_rnn = is_rnn
 
         self.env = Environment(
             NumSU=num_su,
@@ -64,8 +66,14 @@ class Train:
         n_observations = self.env.get_num_states()
         LogUtils.info('TRAIN', f'actions: {n_actions}, observations: {n_observations}')
 
-        self.policy_net = DQNModel(n_observations, n_actions).to(self.device)
-        self.target_net = DQNModel(n_observations, n_actions).to(self.device)
+        if self.is_rnn is False:
+            self.policy_net = DQNModel(n_observations, n_actions).to(self.device)
+            self.target_net = DQNModel(n_observations, n_actions).to(self.device)
+        else:
+            # hidden = 128
+            self.policy_net = DRQNModel(n_observations, n_actions, self.device).to(self.device)
+            self.target_net = DRQNModel(n_observations, n_actions, self.device).to(self.device)
+            # self.hidden_layer = torch.zeros(hidden)
 
         # if exists('res/check_point/target_model.pth'):
             # self.policy_net.load_state_dict(torch.load('res/check_point/dqn/target_model.pth'))
@@ -148,7 +156,7 @@ class Train:
 
         old_label = 'Proposed'
         old_line_style = '--'
-        new_label = 'Proposed + Dynamic Rho'
+        new_label = 'Proposed + GRU + Dynamic Rho'
         new_line_style = '-'
 
         row = 3
@@ -214,7 +222,7 @@ class Train:
             # self.mean_transmit_action_t.append(torch.mean(torch.tensor(self.mean_transmit_action, dtype=torch.float)))
             plt.clf()
         else:
-            file_name = "res"
+            file_name = "res_dynamic_rho"
             path = f'res/result/{file_name}_{self.env.NumSU}.log'
             parser = Parser('dqn', path)
             base_rewards, base_rates, base_loss, base_rho, base_transmit_actions, base_P = parser.get_data()
@@ -337,6 +345,14 @@ class Train:
         state_batch = torch.cat(batch.state)
         action_batch = torch.cat(batch.action)
         reward_batch = torch.cat(batch.reward)
+
+        
+
+        # if self.is_rnn is True:
+        #     state_batch = state_batch.permute(1, 0)
+        #     # state_batch = state_batch.view(1, state_batch.shape[0], state_batch.shape[1])
+        #     non_final_next_states = non_final_next_states.permute(1, 0)
+        #     # non_final_next_states = non_final_next_states.view(1, non_final_next_states.shape[0], non_final_next_states.shape[1])
 
         state_action_values = self.policy_net(state_batch).gather(1, action_batch)
         next_state_values = torch.zeros(self.batch_size, device = self.device)
