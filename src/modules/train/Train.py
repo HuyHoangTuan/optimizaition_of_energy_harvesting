@@ -77,37 +77,37 @@ class Train:
         self.optimizer = optim.SGD(self.policy_net.parameters(), lr = self.learning_rate)
         self.memory = ReplayMemory(100000)
 
-        self.eps_threshold = 500 if self.is_dynamic_rho is False else 400 # Episode
+        self.eps_threshold = 500 if self.is_dynamic_rho is False else 512 # Episode
         self.steps_done = 0
         self.eps_drop_rate = 0
         # visualization
         self.num_to_get_mean = 100
         self.rewards = []
-        self.SU_rewards = []
-        self.R_0_types = []
-        self.R_1_types = []
-        self.R_2_types = []
+        # self.SU_rewards = []
+        # self.R_0_types = []
+        # self.R_1_types = []
+        # self.R_2_types = []
         self.eps = []
         self.eps_e = []
         self.rhos = []
-        self.mean_rhos = []
+        # self.mean_rhos = []
         self.sample = []
         self.sum_rates = []
-        self.mean_sum_rates = []
+        # self.mean_sum_rates = []
         self.actions = []
         self.losses = []
 
         # plt
-        self.SU_rewards_t = [0]
-        self.mean_rhos_t = []
-        self.mean_sum_rates_t = [0]
-        self.mean_loss_t = [0]
+        # self.SU_rewards_t = [0]
+        # self.mean_rhos_t = []
+        # self.mean_sum_rates_t = [0]
+        # self.mean_loss_t = [0]
         self.P_t = [0]
         # self.mean_P = []
-        self.mean_P_t = [0]
+        # self.mean_P_t = [0]
         self.transmit_action = [0]
-        self.mean_transmit_action = []
-        self.mean_transmit_action_t = [0]
+        # self.mean_transmit_action = []
+        # self.mean_transmit_action_t = [0]
 
     def select_action(self, state, episode = 0):
         sample = RandomUtils.custom_random()
@@ -169,9 +169,10 @@ class Train:
             plt.plot(data_t.numpy())
         else:
             mean_parser_t = []
-            for i in range(len(parser_data)):
-                mean_parser_t.append(torch.mean(torch.tensor(parser_data[:i][-self.num_to_get_mean:], dtype=torch.float32)))
-            plt.plot(torch.tensor(mean_parser_t, dtype=torch.float32).numpy(), label=old_label, ls=old_line_style, linewidth=3)
+            if type(parser_data) == list and len(parser_data) > 0:
+                for i in range(len(parser_data)):
+                    mean_parser_t.append(torch.mean(torch.tensor(parser_data[:i][-self.num_to_get_mean:], dtype=torch.float32)))
+                plt.plot(torch.tensor(mean_parser_t, dtype=torch.float32).numpy(), label=old_label, ls=old_line_style, linewidth=3)
         
         if is_need_mean is True:
             mean_t = []
@@ -202,7 +203,9 @@ class Train:
             plt.clf()
         else:
             # parser = Parser('dqn', f'res/result/base_result_{self.env.NumSU}.log')
-            parser = Parser('dqn', f'res/result/base_result_{self.env.NumSU}.log')
+            file_name = "base_result"
+            path = f'res/result/{file_name}_{self.env.NumSU}.log'
+            parser = Parser('dqn', path)
             base_rewards, base_rates, base_loss, base_rho, base_transmit_actions, base_P = parser.get_data()
             plt.clf()
 
