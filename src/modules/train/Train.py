@@ -146,9 +146,9 @@ class Train:
         ylim = kwargs['ylim']
         is_need_extra_data = kwargs['is_need_extra_data']
 
-        old_label = 'Baseline'
+        old_label = 'Proposed'
         old_line_style = '--'
-        new_label = 'Proposed'
+        new_label = 'Proposed + Dynamic Rho'
         new_line_style = '-'
 
         row = 3
@@ -172,7 +172,7 @@ class Train:
             plt.plot(data_t.numpy())
         else:
             mean_parser_t = []
-            if type(parser_data) == list:
+            if type(parser_data) == list and len(parser_data) >0:
                 for i in range(len(parser_data)):
                     mean_parser_t.append(torch.mean(torch.tensor(parser_data[:i][-self.num_to_get_mean:], dtype=torch.float32)))
                 plt.plot(torch.tensor(mean_parser_t, dtype=torch.float32).numpy(), label=old_label, ls=old_line_style, linewidth=3)
@@ -214,8 +214,9 @@ class Train:
             # self.mean_transmit_action_t.append(torch.mean(torch.tensor(self.mean_transmit_action, dtype=torch.float)))
             plt.clf()
         else:
-            # parser = Parser('dqn', f'res/result/base_result_{self.env.NumSU}.log')
-            parser = Parser('dqn', f'res/result/base_result_dynamic_rho_{self.env.NumSU}.log')
+            file_name = "res"
+            path = f'res/result/{file_name}_{self.env.NumSU}.log'
+            parser = Parser('dqn', path)
             base_rewards, base_rates, base_loss, base_rho, base_transmit_actions, base_P = parser.get_data()
             plt.clf()
         
@@ -256,7 +257,7 @@ class Train:
         )
 
         if self.is_dynamic_rho is True:
-            print(base_rho)
+            # print(base_rho)
             self._plot(
                 idx=4,
                 is_need_mean=True,
@@ -350,7 +351,7 @@ class Train:
 
         loss.backward()
 
-        torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 500.0)
+        # torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 500.0)
         self.optimizer.step()
         self.steps_done += 1
         return loss
