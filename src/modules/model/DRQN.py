@@ -8,9 +8,9 @@ class DRQNModel(nn.Module):
         # lstm_hidden_size = 64
         # self.lstm = nn.LSTM(n_observations, lstm_hidden_size)
         
-        self.conv1 = nn.Conv1d(n_observations, 128, 1)
-        self.conv2 = nn.Conv1d(128, 128, 1)
-        self.gru = nn.GRU(128, 128)
+        self.conv1 = nn.Conv1d(n_observations, 8 * n_observations, 1, groups=n_observations)
+        self.conv2 = nn.Conv1d(8 * n_observations, 2 * 8 * n_observations, 1, groups=8 * n_observations)
+        self.gru = nn.GRU(2 * 8 * n_observations, 128)
         self.hidden_layer = torch.zeros(1, 128, device=device)
         self.layer1 = nn.Linear(128, 64)
         self.layer2 = nn.Linear(64, 64)

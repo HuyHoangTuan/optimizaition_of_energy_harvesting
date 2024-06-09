@@ -34,12 +34,14 @@ class Train:
             eps_decay = 0.001,
             tau = 0.001,
             learning_rate = 0.003,  # alpha
-            is_rnn = False
+            is_rnn = False,
+            is_hard_update = False
     ):
         self.is_dynamic_rho = is_dynamic_rho
         self.reward_function_id = reward_function_id
         self.num_episode = num_episode
         self.is_rnn = is_rnn
+        self.is_hard_update = is_hard_update
 
         self.env = Environment(
             NumSU=num_su,
@@ -154,9 +156,9 @@ class Train:
         ylim = kwargs['ylim']
         is_need_extra_data = kwargs['is_need_extra_data']
 
-        old_label = 'Proposed'
+        old_label = 'Proposed + GRU + Soft Update'
         old_line_style = '--'
-        new_label = 'Proposed + GRU + Dynamic Rho'
+        new_label = 'Proposed + GRU + Hard Update'
         new_line_style = '-'
 
         row = 3
@@ -222,7 +224,7 @@ class Train:
             # self.mean_transmit_action_t.append(torch.mean(torch.tensor(self.mean_transmit_action, dtype=torch.float)))
             plt.clf()
         else:
-            file_name = "res_dynamic_rho"
+            file_name = "res_dynamic_rho_gru"
             path = f'res/result/{file_name}_{self.env.NumSU}.log'
             parser = Parser('dqn', path)
             base_rewards, base_rates, base_loss, base_rho, base_transmit_actions, base_P = parser.get_data()
@@ -444,12 +446,14 @@ class Train:
                 # )
                 if done:
                     if i_episode % 5 == 0:
-                        _dict = {}
-                        for key in self.policy_net.state_dict():
-                            _dict[key] = self.policy_net.state_dict()[key] * self.tau + self.target_net.state_dict()[
-                                key] * (1 - self.tau)
-                        self.target_net.load_state_dict(_dict)
-                        # self.target_net.load_state_dict(self.policy_net.state_dict())
+                        if self.is_hard_update is False:
+                            _dict = {}
+                            for key in self.policy_net.state_dict():
+                                _dict[key] = self.policy_net.state_dict()[key] * self.tau + self.target_net.state_dict()[
+                                    key] * (1 - self.tau)
+                            self.target_net.load_state_dict(_dict)
+                        else:
+                            self.target_net.load_state_dict(self.policy_net.state_dict())
                     break
 
             LogUtils.info(

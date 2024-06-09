@@ -15,6 +15,7 @@ if __name__ == '__main__':
     episodes = 1600
     num_su = 1
     is_rnn = False
+    is_hard_update = False
 
     if '-dynamic_rho' in args:
         is_dynamic_rho = True
@@ -30,6 +31,9 @@ if __name__ == '__main__':
     
     if '-rnn' in args:
         is_rnn = True
+
+    if '-hard_update' in args:
+        is_hard_update = True
 
     if '-p_and_rho' in args:
         from src.modules.analysis import PAndRhoAnalysis
@@ -54,7 +58,8 @@ if __name__ == '__main__':
                     num_episode = episodes,
                     is_dynamic_rho = is_dynamic_rho,
                     reward_function_id = reward_function_id,
-                    is_rnn=is_rnn
+                    is_rnn=is_rnn,
+                    is_hard_update=is_hard_update
                 )
                 train.start_train()
             else:
