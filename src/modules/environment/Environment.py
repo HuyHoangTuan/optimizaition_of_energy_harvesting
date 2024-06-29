@@ -322,13 +322,14 @@ class Environment:
                         R = 0
 
             C_bound = max(0.0 , min(prev_C + prev_E, 0.5))
-            P_bound = min(C_bound/(mu * self.T_s), self.I[v] / G_sp[v])
+            C_bound = 0.5
+            P_bound = min(C_bound/(self.T_s), self.I[v] / G_sp[v])
             P_bound_dbw = self._convert_2_dbW(P_bound)
             P_p_bound_dbw = self._convert_2_dbW(P_p[v])
             if v == 1:
-                rate_bound = mu * self.T_s * math.log2(1 + (P_bound_dbw * G_s) / (self.N_0 + P_p_bound_dbw * G_pr[v] + self._calc_Interference_Rx_Tx(P_bound_dbw, SU, G_rt)))
+                rate_bound = self.T_s * math.log2(1 + (P_bound_dbw * G_s) / (self.N_0 + P_p_bound_dbw * G_pr[v] + self._calc_Interference_Rx_Tx(P_bound_dbw, SU, G_rt)))
             else:
-                rate_bound = mu * self.T_s * math.log2(1 + (P_bound_dbw * G_s) / (self.N_0 + self._calc_Interference_Rx_Tx(P_bound_dbw, SU, G_rt)))
+                rate_bound = self.T_s * math.log2(1 + (P_bound_dbw * G_s) / (self.N_0 + self._calc_Interference_Rx_Tx(P_bound_dbw, SU, G_rt)))
             Rate_bounds += rate_bound
             # elif self.Reward_Function_ID == 1:
             #     P_dbw = self._convert_2_dbW(P)

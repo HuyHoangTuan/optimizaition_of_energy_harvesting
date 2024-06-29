@@ -155,12 +155,16 @@ class Train:
         is_need_mean = kwargs['is_need_mean']
         ylim = kwargs['ylim']
         is_need_extra_data = kwargs['is_need_extra_data']
+        f = kwargs['f']
 
-        old_label = 'Proposed + GRU + Soft Update'
-        old_line_style = '--'
-        new_label = 'Proposed + GRU + Hard Update'
-        new_line_style = '-'
-
+        labels = ['Baseline', 'Proposed DQN', 'Proposed DRQN']
+        line_styles = ['-', '-', '-']
+        markers = ['.', 's', 'x']
+        colors = ['royalblue', 'darkorange', 'lime']
+        size = 1.5
+        old_idx = 1
+        new_idx = 2
+        
         row = 3
         column = 2
 
@@ -184,22 +188,22 @@ class Train:
             mean_parser_t = []
             if type(parser_data) == list and len(parser_data) >0:
                 for i in range(len(parser_data)):
-                    mean_parser_t.append(torch.mean(torch.tensor(parser_data[:i][-self.num_to_get_mean:], dtype=torch.float32)))
-                plt.plot(torch.tensor(mean_parser_t, dtype=torch.float32).numpy(), label=old_label, ls=old_line_style, linewidth=3)
+                    mean_parser_t.append(torch.mean(torch.tensor(parser_data[:i][-f:], dtype=torch.float32)))
+                plt.plot(torch.tensor(mean_parser_t, dtype=torch.float32).numpy(), label=labels[old_idx], linestyle=line_styles[old_idx], marker=markers[old_idx], color=colors[old_idx], linewidth=size, markevery=math.floor(len(parser_data)/32 ))
 
 
         if is_need_mean is True:
             mean_t = []
             for i in range(len(data)):
-                mean_t.append(torch.mean(torch.tensor(data[:i][-self.num_to_get_mean:], dtype=torch.float32)))
-            plt.plot(torch.tensor(mean_t, dtype=torch.float32).numpy(), label=new_label, ls=new_line_style, linewidth=3)
+                mean_t.append(torch.mean(torch.tensor(data[:i][-f:], dtype=torch.float32)))
+            plt.plot(torch.tensor(mean_t, dtype=torch.float32).numpy(), label=labels[new_idx], linestyle=line_styles[new_idx], marker=markers[new_idx], color=colors[new_idx], linewidth=size, markevery=math.floor(len(data)/32))
 
         if extra_data != None and is_need_mean is True and is_need_extra_data is True:
             if is_need_mean is True:
                 mean_extra_t = []
                 for i in range(len(extra_data)):
-                    mean_extra_t.append(torch.mean(torch.tensor(extra_data[:i][-self.num_to_get_mean:], dtype=torch.float32)))
-                plt.plot(torch.tensor(mean_extra_t, dtype=torch.float32).numpy(), label='Bound', ls=':', linewidth=3)
+                    mean_extra_t.append(torch.mean(torch.tensor(extra_data[:i][-f:], dtype=torch.float32)))
+                plt.plot(torch.tensor(mean_extra_t, dtype=torch.float32).numpy(), label='Bound', linestyle='-', color='gray', linewidth=2)
 
         if parser_data != None:
             plt.legend(loc='best')
@@ -214,6 +218,7 @@ class Train:
         base_rates = None
         base_loss = None
         base_transmit_actions = None
+        base_rho = None
         base_P = None
 
         if show_result is False:
@@ -224,10 +229,11 @@ class Train:
             # self.mean_transmit_action_t.append(torch.mean(torch.tensor(self.mean_transmit_action, dtype=torch.float)))
             plt.clf()
         else:
-            file_name = "res_dynamic_rho_gru"
+            file_name = "base_result"
             path = f'res/result/{file_name}_{self.env.NumSU}.log'
-            parser = Parser('dqn', path)
-            base_rewards, base_rates, base_loss, base_rho, base_transmit_actions, base_P = parser.get_data()
+            # if exists(path):
+            #     parser = Parser('dqn', path)
+            #     base_rewards, base_rates, base_loss, base_rho, base_transmit_actions, base_P = parser.get_data()
             plt.clf()
         
         self._plot(
@@ -239,7 +245,8 @@ class Train:
             data=self.rewards,
             parser_data=base_rewards,
             extra_data=None,
-            is_need_extra_data=False
+            is_need_extra_data=False,
+            f=self.num_to_get_mean
         )
 
         self._plot(
@@ -251,7 +258,8 @@ class Train:
             data=self.sum_rates,
             parser_data=base_rates,
             extra_data=self.bounds,
-            is_need_extra_data=(self.env.NumSU == 1) 
+            is_need_extra_data=(self.env.NumSU == 1),
+            f=self.num_to_get_mean
         )
         
         self._plot(
@@ -263,7 +271,8 @@ class Train:
             data=self.transmit_action,
             parser_data=base_transmit_actions,
             extra_data=None,
-            is_need_extra_data=False
+            is_need_extra_data=False,
+            f=self.num_to_get_mean
         )
 
         if self.is_dynamic_rho is True:
@@ -277,7 +286,8 @@ class Train:
                 data=self.rhos,
                 parser_data=base_rho,
                 extra_data=None,
-                is_need_extra_data=False
+                is_need_extra_data=False,
+                f=self.num_to_get_mean
             )
         else:
             self._plot(
@@ -289,7 +299,8 @@ class Train:
                 data=self.eps_e,
                 parser_data=None,
                 extra_data=None,
-                is_need_extra_data=False
+                is_need_extra_data=False,
+                f=self.num_to_get_mean
             )
 
         self._plot(
@@ -301,7 +312,8 @@ class Train:
             data=self.losses,
             parser_data=base_loss,
             extra_data=None,
-            is_need_extra_data=False
+            is_need_extra_data=False,
+            f=self.num_to_get_mean
         )
 
         self._plot(
@@ -313,7 +325,8 @@ class Train:
             data=self.P_t,
             parser_data=base_P,
             extra_data=None,
-            is_need_extra_data=False
+            is_need_extra_data=False,
+            f=self.num_to_get_mean * self.env.N
         )
         plt.tight_layout()
         plt.pause(1 / 1024)  # pause a bit so that plots are updated
@@ -395,7 +408,15 @@ class Train:
             # sum_gs = 0
             sum_transmit_actions_episode = 0
             count_loss = 0
+
             _P_t = []
+            _reward_t = []
+            _rate_t = []
+            _rho_t = []
+            _transmit_actions_t = []
+            _bound_t = []
+            _C = []
+
 
             for t in count():
                 action = self.select_action(state, i_episode)
@@ -410,7 +431,14 @@ class Train:
                 # sum_actions += 1
                 sum_transmit_actions += 1 if k == 0 else 0
                 sum_transmit_actions_episode += 1 if k == 0 else 0
+
                 _P_t.append(P)
+                _reward_t.append(reward.squeeze(0).item())
+                _rate_t.append(rate)
+                _rho_t.append(Rho)
+                _transmit_actions_t.append(1 if k == 0 else 0)
+                _bound_t.append(bound)
+                _C.append(observation[2])
 
                 done = True if time_slot >= self.env.N else False
 
@@ -460,10 +488,17 @@ class Train:
                 'TRAIN',
                 f'({i_episode + 1}/{self.num_episode}): '
                 f'reward: {sum_reward}, '
+                f'reward_t: {_reward_t}, '
                 f'rates: {sum_rate}, '
+                f'rate_t: {_rate_t}, '
                 f'loss: {0 if count_loss <=0 else sum_loss / count_loss}, '
                 f'rho: {sum_Rho / self.env.N}, '
+                f'rho_t: {_rho_t}, '
                 f'transmit_actions: {sum_transmit_actions_episode}, '
+                f'transmit_actions_t: {_transmit_actions_t}, '
+                f'bound: {sum_bound}, '
+                f'bound_t: {_bound_t}, '
+                f'C: {_C},'
                 f'P: {_P_t}'
             )
 
@@ -498,6 +533,7 @@ class Train:
             #     self.mean_gs = self.mean_gs[1:]
 
             self.P_t.extend(_P_t)
+            # self.P_t.append(torch.mean(torch.tensor(_P_t, dtype=torch.float)).item())
             # for _P in _P_t:
             #     self.P_t.append(_P)
                 # self.mean_P_t.append(torch.mean(torch.tensor(self.P_t[-self.num_to_get_mean:], dtype=torch.float)))
