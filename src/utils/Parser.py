@@ -55,6 +55,7 @@ class Parser:
         bound_t = []
         C_t = []
         P_t = []
+        P_bound_t = []
         for line in lines:
             prefix = '[TRAIN]: ('
             if line.startswith(prefix):
@@ -94,6 +95,9 @@ class Parser:
                 C_t.append(
                     self._parse_array(line, 'C: [')
                 )
+                P_bound_t.append(
+                    self._parse_array(line, 'P_bound_t:')
+                )
 
                 # P.append(
                 #     torch.mean(
@@ -120,6 +124,7 @@ class Parser:
         self._P = P
         self._C = C_t
         self._P = P_t
+        self._P_bound = P_bound_t
 
     def _parse_for_risk_averse(self, _file):
         return [], []
@@ -131,7 +136,7 @@ class Parser:
         return self._rates
 
     def get_C(self):
-        return self._C, self._P
+        return self._C, self._P, self._P_bound
 
     def get_data(self):
         return self._rewards, self._reward_t, self._rates, self._rate_t, self._loss, self._rho, self._rho_t, self._bound, self._bound_t, self._transmit_actions, self._transmit_actions_t, self._P

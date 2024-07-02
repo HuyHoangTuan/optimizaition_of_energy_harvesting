@@ -381,7 +381,7 @@ class Environment:
             Rate_bounds
         )
 
-        return state, action, reward, self._Time_Slot
+        return state, action, reward, self._Time_Slot, P_bound
 
     def get_num_states(self):
         return len(self._Default_State)

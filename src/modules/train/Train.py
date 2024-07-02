@@ -416,11 +416,12 @@ class Train:
             _transmit_actions_t = []
             _bound_t = []
             _C = []
+            _P_bound_t = []
 
 
             for t in count():
                 action = self.select_action(state, i_episode)
-                observation, (k, P, Rho), (reward, rate, bound), time_slot = self.env.step(action.item(), i_episode)
+                observation, (k, P, Rho), (reward, rate, bound), time_slot, P_bound = self.env.step(action.item(), i_episode)
                 reward = torch.tensor([reward], dtype = torch.float32, device = self.device)
 
                 sum_rate += rate
@@ -439,6 +440,7 @@ class Train:
                 _transmit_actions_t.append(1 if k == 0 else 0)
                 _bound_t.append(bound)
                 _C.append(observation[2])
+                _P_bound_t.append(P_bound)
 
                 done = True if time_slot >= self.env.N else False
 
@@ -498,7 +500,8 @@ class Train:
                 f'transmit_actions_t: {_transmit_actions_t}, '
                 f'bound: {sum_bound}, '
                 f'bound_t: {_bound_t}, '
-                f'C: {_C},'
+                f'C: {_C}, '
+                f'P_bound_t: {_P_bound_t}, '
                 f'P: {_P_t}'
             )
 
