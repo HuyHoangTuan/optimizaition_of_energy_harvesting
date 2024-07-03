@@ -148,14 +148,14 @@ if __name__ == '__main__':
                 marker='o',
                 markersize=10,
                 markevery=markers,
-                label="k=1",
+                label="Rho với k=1",
                 color='royalblue',
             )
             ax2.plot(
                 x,
                 data1s,
                 linestyle='-',
-                label="k=0",
+                label="Rho với k=0",
                 color='royalblue',
             )
             ax2.set_ylim(bottom=0, top=1.0)
