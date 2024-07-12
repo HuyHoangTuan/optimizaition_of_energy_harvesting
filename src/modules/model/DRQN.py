@@ -10,7 +10,7 @@ class DRQNModel(nn.Module):
         
         self.conv1 = nn.Conv1d(n_observations, 8 * n_observations, 1, groups=n_observations)
         self.conv2 = nn.Conv1d(8 * n_observations, 2 * 8 * n_observations, 1, groups=8 * n_observations)
-        self.gru = nn.GRU(2 * 8 * n_observations, 128, num_layers=3, dropout=0.2)
+        self.gru = nn.GRU(2 * 8 * n_observations, 128)
         self.layer1 = nn.Linear(128, 64)
         self.layer2 = nn.Linear(64, 64)
         self.layer3 = nn.Linear(64, n_actions)  # Adjust the output size to match the number of actions

@@ -49,8 +49,8 @@ if __name__ == '__main__':
         plt.figure(num=1, figsize=(16, 9), dpi=100)
 
         ax = plt.subplot(1, 1, 1)
-        name = ['dqn', 'rnn', 'rnn_hard']
-        SUs = [15, 15]
+        name = ['baseline', 'dqn', 'rnn', 'rnn_hard']
+        SUs = [1, 1, 1]
         is_bound = [0, 0, 0]
         datas = []
         bounds = None
@@ -58,27 +58,27 @@ if __name__ == '__main__':
             path = f'res/plot/{name[i]}_{su}.log'
             parser = Parser('dqn', path)
             reward, reward_t, rate, rate_t, loss, rho, rho_t, bound, bound_t, ta, ta_t, P = parser.get_data()
-            datas.append(rho)
+            datas.append(reward)
             if is_bound[i]:
                 bounds = bound
 
-        labels = ['DQN', 'DRQN']
+        labels = ['Baseline', 'DQN', 'DRQN', 'DRQN cập nhật cứng']
         line_styles = ['-', '-', '-', '-', '-', '-']
         # markers = ['.', 's', 'x']
-        # markers = ['o', 's', 'P']
-        markers = ['s', 'P', 's', 'P']
+        markers = ['o', 's', 'P']
+        # markers = ['s', 's', 'P', 'P']
         # markers = ['s', 'P', 'P']
         # markers = ['s', 's', 'x', 'x']
         # colors = ['peru', 'palegreen', 'crimson', 'navy']
-        # colors = ['royalblue', 'darkorange', 'lime']
-        colors = ['darkorange', 'lime', 'burlywood', 'seagreen']
+        colors = ['royalblue', 'darkorange', 'lime']
+        # colors = ['darkorange', 'burlywood', 'lime', 'seagreen']
         # colors = ['darkorange', 'burlywood', 'lime', 'seagreen']
         # colors = ['#darkorange', '#lime', '#006500']
-        # colors = ['lime', 'seagreen', 'aquamarine']
+        # colors = ['#2200ff', '#fc00ff', '#07c300']
         # colors = ['lime', 'seagreen', 'aquamarine', 'seagreen', 'gold', 'aquamarine']
         f = 100
         # plt.title('rho')
-        plt.ylabel('Trung bình tốc độ nhận tin (bit/s)')
+        plt.ylabel('Trung bình phần thưởng')
         plt.xlabel('Episode')
         for i, su in enumerate(SUs):
             mean_data = []
@@ -195,7 +195,7 @@ if __name__ == '__main__':
                 for i in range(len(_P)):
                     if _P[i] > _P_bound[i] and _ta_t[i] == 1 or _P[i] <= 0:
                         ok = False
-                if np.sum(np.array(_ta_t)) >= 10 and np.sum(np.array(_ta_t)) <= 17 and _rate >= 60.0 and _rate < 70.0 and ok is True and _ta_t[0] == 0:
+                if np.sum(np.array(_ta_t)) >= 10 and np.sum(np.array(_ta_t)) <= 17 and _rate >= 5 and _rate < 20.0 and ok is True and _ta_t[0] == 0:
                     data1s = _rho_t
                     data2s = _ta_t
                     data3s = _C_t

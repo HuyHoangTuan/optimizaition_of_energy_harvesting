@@ -24,10 +24,12 @@ def sample(population, k, *, counts = None):
     return random.sample(population, k, counts = counts)
 
 def rayleigh(Lambda = 1.0, size = None):
-    scale = 1.0 / np.sqrt(2 * Lambda)
+    scale = 1.0/Lambda
     exp = RandomUtils.exponential(scale = scale, size = size)
-    rayleighs = np.sqrt(2 * exp)
-    return rayleighs
+    lambda_est = 1 / np.mean(exp)
+    x = np.linspace(np.min(exp), np.max(exp), size)
+    # rayleighs = np.sqrt(2 * exp)
+    return lambda_est * np.exp(-lambda_est * x)
 
 def poisson(Lambda = 1.0, size = None):
     return RandomUtils.poisson(lam = Lambda, size = size)

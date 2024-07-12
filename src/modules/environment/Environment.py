@@ -10,11 +10,11 @@ class Environment:
             NumSU=10,
             NumPU=2,
             P_max=1,
-            Xi_s=0.1,
-            Xi_pr=[0.1, 0.1],
-            Xi_ps=[0.1, 0.1],
-            Xi_p=[0.1, 0.1],
-            Xi_sp=[0.1, 0.1],
+            Xi_s=1.0,
+            Xi_pr=[1.0, 1.0],
+            Xi_ps=[1.0, 1.0],
+            Xi_p=[1.0, 1.0],
+            Xi_sp=[1.0, 1.0],
             I=[0.5, 0.5],
             Lambda=0.1,
             N=20,
@@ -117,13 +117,13 @@ class Environment:
             for j in range(0, self.NumSU):
                 self._P_p[i].append([])
                 for z in range(0, self.NumPU):
-                    self._P_p[i][j].append(RandomUtils.uniform(0, self.P_max, self.N))
-
+                    self._P_p[i][j].append(RandomUtils.uniform(0.001, self.P_max, self.N))
+        # print(self._P_p)
         # E_ambient: [ [Episode][Time_Slot] ]
         self._E_ambient = []
         for i in range(self.Episode):
-            self._E_ambient.append(RandomUtils.uniform(0, self.E_max, self.N))
-
+            self._E_ambient.append(RandomUtils.uniform(0.001, self.E_max, self.N))
+        # print(self.g_p)
         # g_rt: [[Episode][SU_RX][SU_TX][Time_Slot]]
         self.g_rt = []
         for i in range(self.Episode):
@@ -140,7 +140,7 @@ class Environment:
         # Huy's  edition
         k = [0, 1]
         delta_P = 1.0 / 16.0
-        P = [i * delta_P for i in range(0, int(0.5 / delta_P) * 2 + 1)]
+        P = [i * delta_P for i in range(1, int(0.5 / delta_P) * 2 + 1)]
 
         if self.Is_Dynamic_Rho == True:
             delta_Rho = 1.0 / 8.0
@@ -250,13 +250,13 @@ class Environment:
     def _add_record(self, SU, record):
         self.records[SU].append(record)
 
-    def _convert_2_dbW(self, PW):
+    def _convert_2_dbm(self, PW):
         if PW == 0:
             return 0
         else:
-            P_dbw = 10 * math.log(PW * 1000, 10)
-            P_dbw = 10 ** (P_dbw / 10)
-            return P_dbw
+            P_dbm = 10 * math.log(PW * 1000, 10)
+            # P_dbw = 10 ** (P_dbw / 10)
+            return P_dbm
 
     def reset(self):
         self.records = []
@@ -308,13 +308,15 @@ class Environment:
                 R = -self.Phi
                 if k == 0 and mu * P * self.T_s <= C:
                     if P * G_sp[v] <= self.I[v]:
-                        P_dbw = self._convert_2_dbW(P)
-                        P_p_dbw = self._convert_2_dbW(P_p[v])
-
+                        # P_dbw = self._convert_2_dbW(P)
+                        # P_p_dbw = self._convert_2_dbW(P_p[v])
+                        _P = self._convert_2_dbm(P)
+                        _P_p = self._convert_2_dbm(P_p[v])
+                        # print(f'{_P} {_P_p} {P_p[v]} {1 + (_P * G_s) / (self.N_0 + _P_p * G_pr[v] + self._calc_Interference_Rx_Tx(_P, SU, G_rt))}')
                         if v == 1:
-                            R = mu * self.T_s * math.log2(1 + (P_dbw * G_s) / (self.N_0 + P_p_dbw * G_pr[v] + self._calc_Interference_Rx_Tx(P_dbw, SU, G_rt)))
+                            R = mu * self.T_s * math.log2(1 + (_P * G_s) / (self.N_0 + _P_p * G_pr[v] + self._calc_Interference_Rx_Tx(_P, SU, G_rt)))
                         else:
-                            R = mu * self.T_s * math.log2(1 + (P_dbw * G_s) / (self.N_0 + self._calc_Interference_Rx_Tx(P_dbw, SU, G_rt)))
+                            R = mu * self.T_s * math.log2(1 + (_P * G_s) / (self.N_0 + self._calc_Interference_Rx_Tx(_P, SU, G_rt)))
 
                         Rates += R
                 else:
@@ -324,12 +326,13 @@ class Environment:
             C_bound = max(0.0 , min(prev_C + prev_E, 0.5))
             C_bound = 0.5
             P_bound = min(C_bound/(self.T_s), self.I[v] / G_sp[v])
-            P_bound_dbw = self._convert_2_dbW(P_bound)
-            P_p_bound_dbw = self._convert_2_dbW(P_p[v])
+            P_bound_dbm = self._convert_2_dbm(P_bound)
+            P_p_bound_dbm = self._convert_2_dbm(P_p[v])
+            # print(f'{P_bound_dbm}, {P_p_bound_dbm}')
             if v == 1:
-                rate_bound = self.T_s * math.log2(1 + (P_bound_dbw * G_s) / (self.N_0 + P_p_bound_dbw * G_pr[v] + self._calc_Interference_Rx_Tx(P_bound_dbw, SU, G_rt)))
+                rate_bound = self.T_s * math.log2(1 + (P_bound_dbm * G_s) / (self.N_0 + P_p_bound_dbm * G_pr[v] + self._calc_Interference_Rx_Tx(P_bound_dbm, SU, G_rt)))
             else:
-                rate_bound = self.T_s * math.log2(1 + (P_bound_dbw * G_s) / (self.N_0 + self._calc_Interference_Rx_Tx(P_bound_dbw, SU, G_rt)))
+                rate_bound = self.T_s * math.log2(1 + (P_bound_dbm * G_s) / (self.N_0 + self._calc_Interference_Rx_Tx(P_bound_dbm, SU, G_rt)))
             Rate_bounds += rate_bound
             # elif self.Reward_Function_ID == 1:
             #     P_dbw = self._convert_2_dbW(P)

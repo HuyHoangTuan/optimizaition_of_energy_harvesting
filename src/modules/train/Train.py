@@ -81,12 +81,12 @@ class Train:
             # self.policy_net.load_state_dict(torch.load('res/check_point/dqn/target_model.pth'))
 
         self.target_net.load_state_dict(self.policy_net.state_dict())
-        self.target_net.eval()
+        # self.target_net.eval()
 
         self.optimizer = optim.SGD(self.policy_net.parameters(), lr = self.learning_rate)
         self.memory = ReplayMemory(100000)
 
-        self.eps_threshold = 500 if self.is_dynamic_rho is False else 512 # Episode
+        self.eps_threshold = 500 if self.is_dynamic_rho is False else 500 # Episode
         self.steps_done = 0
         self.eps_drop_rate = 0
         # visualization
@@ -328,8 +328,8 @@ class Train:
             is_need_extra_data=False,
             f=self.num_to_get_mean * self.env.N
         )
-        plt.tight_layout()
-        plt.pause(1 / 1024)  # pause a bit so that plots are updated
+        # plt.tight_layout()
+        # plt.pause(1 / 1024)  # pause a bit so that plots are updated
         # ---------------------------------------------------------------------
 
         if is_ipython:
