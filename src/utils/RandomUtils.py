@@ -27,6 +27,7 @@ def rayleigh(Lambda = 1.0, size = None):
     scale = 1.0/Lambda
     exp = RandomUtils.exponential(scale = scale, size = size)
     lambda_est = 1 / np.mean(exp)
+    lambda_est = min(lambda_est, Lambda)
     x = np.linspace(np.min(exp), np.max(exp), size)
     # rayleighs = np.sqrt(2 * exp)
     return lambda_est * np.exp(-lambda_est * x)
