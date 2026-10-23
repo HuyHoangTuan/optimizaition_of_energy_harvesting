@@ -307,16 +307,16 @@ class Environment:
             if self.Reward_Function_ID == 0:
                 R = -self.Phi
                 if k == 0 and mu * P * self.T_s <= C:
-                    if P * G_sp[v] <= self.I[v]:
+                    if mu * P * G_sp[v] <= self.I[v]:
                         # P_dbw = self._convert_2_dbW(P)
                         # P_p_dbw = self._convert_2_dbW(P_p[v])
                         _P = self._convert_2_dbm(P)
                         _P_p = self._convert_2_dbm(P_p[v])
                         # print(f'{_P} {_P_p} {P_p[v]} {1 + (_P * G_s) / (self.N_0 + _P_p * G_pr[v] + self._calc_Interference_Rx_Tx(_P, SU, G_rt))}')
                         if v == 1:
-                            R = mu * self.T_s * math.log2(1 + (_P * G_s) / (self.N_0 + _P_p * G_pr[v] + self._calc_Interference_Rx_Tx(_P, SU, G_rt)))
+                            R = self.T_s * math.log2(1 + (mu * _P * G_s) / (self.N_0 + _P_p * G_pr[v] + mu *self._calc_Interference_Rx_Tx(_P, SU, G_rt)))
                         else:
-                            R = mu * self.T_s * math.log2(1 + (_P * G_s) / (self.N_0 + self._calc_Interference_Rx_Tx(_P, SU, G_rt)))
+                            R = self.T_s * math.log2(1 + (mu * _P * G_s) / (self.N_0 + mu * self._calc_Interference_Rx_Tx(_P, SU, G_rt)))
 
                         Rates += R
                 else:

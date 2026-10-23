@@ -49,9 +49,9 @@ if __name__ == '__main__':
         plt.figure(num=1, figsize=(16, 9), dpi=100)
 
         ax = plt.subplot(1, 1, 1)
-        name = ['baseline', 'dqn', 'rnn', 'rnn_hard']
-        SUs = [1, 1, 1]
-        is_bound = [0, 0, 0]
+        name = ['dqn', 'dqn_hard', 'rnn', 'rnn_hard']
+        SUs = [1, 1, 1, 1]
+        is_bound = [0, 0, 0, 0]
         datas = []
         bounds = None
         for i, su in enumerate(SUs):
@@ -62,23 +62,23 @@ if __name__ == '__main__':
             if is_bound[i]:
                 bounds = bound
 
-        labels = ['Baseline', 'DQN', 'DRQN', 'DRQN cập nhật cứng']
+        labels = ['DQN cập nhật mềm', 'DQN cập nhật cứng', 'DRQN cập nhật mềm', 'DRQN cập nhật cứng']
         line_styles = ['-', '-', '-', '-', '-', '-']
         # markers = ['.', 's', 'x']
-        markers = ['o', 's', 'P']
-        # markers = ['s', 's', 'P', 'P']
+        # markers = ['o', 's', 'P']
+        markers = ['s', 's', 'P', 'P']
         # markers = ['s', 'P', 'P']
         # markers = ['s', 's', 'x', 'x']
         # colors = ['peru', 'palegreen', 'crimson', 'navy']
-        colors = ['royalblue', 'darkorange', 'lime']
+        # colors = ['royalblue', 'darkorange', 'lime']
+        colors = ['darkorange', 'burlywood', 'lime', 'seagreen']
         # colors = ['darkorange', 'burlywood', 'lime', 'seagreen']
-        # colors = ['darkorange', 'burlywood', 'lime', 'seagreen']
-        # colors = ['#darkorange', '#lime', '#006500']
+        # colors = ['darkorange', 'lime', '#006500']
         # colors = ['#2200ff', '#fc00ff', '#07c300']
         # colors = ['lime', 'seagreen', 'aquamarine', 'seagreen', 'gold', 'aquamarine']
         f = 100
         # plt.title('rho')
-        plt.ylabel('Trung bình phần thưởng')
+        plt.ylabel('Trung bình tổng phần thưởng')
         plt.xlabel('Episode')
         for i, su in enumerate(SUs):
             mean_data = []
