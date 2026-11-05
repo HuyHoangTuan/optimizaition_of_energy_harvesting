@@ -16,7 +16,7 @@ Historical source recovery showed qualitative learning, but the recovered candid
 - Corrected fixed N = 1 DRQN gave mean paired gain +0.010206447; one of three seeds improved. Its frozen criterion failed.
 - Multi-SU DRQN is implemented, but N = 2 was not admitted by budget and N = 3 was skipped.
 
-Episodes contain 20 slots. Baseline results use reward per episode; later results use reward per SU per slot. Reward includes penalties; recorded score counts executed contributions. Fixed rho is 0.4; the dynamic set {1/8,…,7/8} excludes 0.4. Three training seeds remain three training replicates, even with 100 evaluation episodes per policy.
+Episodes contain 20 slots. The new DQN figures use reward per SU per slot; the legacy inventory keeps raw episode reward. Reward includes penalties; recorded score sums compatibility-score contributions from executed transmissions. Fixed rho is 0.4; the dynamic set {1/8,…,7/8} excludes 0.4. Three training seeds remain three training replicates, even with 100 evaluation episodes per policy.
 
 The [standalone report](RESEARCH_REPORT.html) embeds the checked comparison charts, neural diagrams, radio diagram and equations.
 
@@ -36,39 +36,144 @@ See [MULTI_AGENT.md](MULTI_AGENT.md) for independent DQN and [DRQN.md](DRQN.md) 
 
 ## Section 4: Result
 
-Recovered baseline held-out reward per 20-slot episode:
+Controlled DQN learned in the retained studies. The shared-versus-independent comparison is limited to one matched training seed. Paper-based reproduction appears as separate context.
 
-| Source / mode | Training seeds | Final | Random |
-| --- | --- | --- | --- |
-| Historical fixed | 3 | 27.960459 | −6.220458 |
-| Historical dynamic | 3 | 13.940750 | −7.109862 |
-| Current-source fixed | 1 | 15.567203 | −6.525259 |
-| Current-source dynamic | 1 | 17.329592 | −6.723132 |
+Scroll wide charts horizontally on small screens.
 
-Historical rows use seeds 2, 17, 42; current controls use seed 2. Saved late-training means 26.473710/42.831108 are a different evidence class. Historical dynamic held-out seeds were 33.626409, 9.840545 and −1.644706; all beat random, but one remained negative.
+Every new training figure retains all 1,600 source episodes in [figure data](assets/dqn-comparisons/figure-data.json). [Final metrics](assets/dqn-comparisons/final-metrics.csv) include all 46 complete runs and the training tail separately.
 
-Early independent recipe, three seeds per group, reward per SU per slot:
+Training uses a trailing 100-episode arithmetic mean with `min_periods=100`; the first displayed point is episode 100. There is no padding or interpolation. Stability episode IDs 0–1599 become 1–1600; other records already use 1–1600. Faint curves show training seeds; bold curves show their equal-weight mean.
 
-| N | Final | Random | Final − random |
-| --- | --- | --- | --- |
-| 1 | −0.420125 | −0.218698 | −0.201427 |
-| 3 | −0.763595 | −0.291785 | −0.471810 |
-| 5 | −0.411412 | −0.338165 | −0.073247 |
+Reward per SU per slot is the sum of the joint reward vector divided by `20 * n_SU`. Baseline scalar reward is divided by 20 for context only. Reward includes penalties and is not validated physical throughput or energy efficiency. Final points average 100 held-out greedy episodes per training seed. A vertical tick marks the seed mean, a horizontal line its seed range, and a cross the corresponding random mean. These are not confidence intervals. Three training seeds remain three replicates; 100 audit episodes are not 100 training seeds.
 
-Twenty of 27 trained SU policies never executed successfully. Excessive action-value estimates accompanied the failure; these observations do not identify one proven cause.
+### DQN: Paper-based local reproduction
 
-Controlled DQN, three seeds per group, reward per SU per slot:
+The requested baseline is the local paper-based DQN reproduction, with random as its control. The reference paper uses one SU link and action `(kappa, power)`, with rho fixed within each experiment. Historical fixed rho = 0.4 is the local reproduction candidate. Historical dynamic rho is an extension. Current-source controls use a changed model; they are separate cohorts.
 
-| Mode / N | Final | Random | Execution |
-| --- | --- | --- | --- |
-| Fixed / 1 | 0.851535 | −0.323089 | 94.5167% |
-| Fixed / 2 | 0.498276 | −0.349034 | 94.4167% |
-| Fixed / 3 | 0.360747 | −0.351447 | 93.3167% |
-| Fixed / 5 | 0.228109 | −0.374923 | 92.2367% |
-| Dynamic / 1 | 0.936180 | −0.302057 | 94.7167% |
-| Dynamic / 3 | 0.365883 | −0.350478 | 93.6889% |
+Tashman, Cherkaoui and Hamouda, *Performance Optimization of Energy-Harvesting Underlay Cognitive Radio Networks Using Reinforcement Learning*, IWCMC 2023, pp. 1160–1165, [DOI](https://doi.org/10.1109/IWCMC58020.2023.10182973), provide published curves, not the retained local raw data. Their smoothing, seed counts and normalization are insufficiently specified for exact numerical comparison. No exact numerical reproduction is established.
 
-All six groups beat initial and random controls and passed recorded learning, health, score and execution gates. Per-SU reward declines with N; network reward per slot rises from 0.851535 at fixed N = 1 to approximately 1.140545 at N = 5. Gates do not prove convergence or optimality. A one-seed shared-controller pilot cannot establish superiority because observations, objectives, capacity and actions differ.
+![Paper-based local reproduction: training](assets/dqn-comparisons/paper-baseline-training.png)
+
+![Paper-based local reproduction: final](assets/dqn-comparisons/paper-baseline-final.png)
+
+| Case | Training seeds | Last 100 training | Final greedy | Random |
+| --- | --- | ---: | ---: | ---: |
+| Historical fixed, paper-based context | 2, 17, 42 | 1.212943 | 1.398023 | -0.311023 |
+| Historical dynamic extension | 2, 17, 42 | 1.567851 | 0.697037 | -0.355493 |
+| Current-source fixed control | 2 | 0.800998 | 0.778360 | -0.326263 |
+| Current-source dynamic control | 2 | 0.880831 | 0.866480 | -0.336157 |
+
+The historical candidate is not proven to have produced the original saved logs. Historical fading and power conversion differ from the paper. Current controls change fading, activation, battery, time, feasibility and rate accounting. Action sets, observations, target updates and clipping also differ. Current fixed uses the completed replacement run after instrumentation problems; current evaluations were recovered after an evaluator defaulted to ten SUs. These qualifications remain part of the evidence.
+
+Historical dynamic seed 42 has positive late-training reward but final reward −0.082235 per slot. That audit remained above its random control but below zero. Training improvement does not guarantee held-out generalization.
+
+### DQN: One shared agent versus independent agents
+
+Both controllers act in one joint environment. One shared agent sees flattened global observations, broadcasts one action to every SU and learns summed reward. Independent agents choose their own actions from their own observations and learn their own rewards. The comparison changes information, objective, action structure and capacity together.
+
+The fixed-rho panels compare seed 2 at n_SU = 2, 3 and 5. Configurations, training traces, action maps and audit traces match within each count. Paper-based one-link reproduction stays in a separate context panel because its source and model differ.
+
+![Paper baseline context, shared agent and independent agents: training](assets/dqn-comparisons/shared-independent-training.png)
+
+![Paper baseline context, shared agent and independent agents: final](assets/dqn-comparisons/shared-independent-final.png)
+
+| n_SU | Independent seed 2 | Shared seed 2 | Shared − independent |
+| --- | ---: | ---: | ---: |
+| 2 | 0.505394159 | 0.476067172 | -0.029326986 |
+| 3 | 0.364288854 | 0.363765201 | -0.000523653 |
+| 5 | 0.232259661 | 0.231588162 | -0.000671499 |
+
+Shared seed 2 was lower by about 0.029327, 0.000524 and 0.000671 at the three counts. One seed cannot establish superiority or convergence. Shared and independent random action structures also differ. Shared seeds 17 and 42 were not run.
+
+### DQN: Controlled SU scaling and dynamic rho
+
+The controlled independent study recorded fixed n_SU = 1, 2, 3, 5 and dynamic n_SU = 1, 3, with seeds 2, 17, 42. Final audit seed 910002 is separate from selection-monitor seed 910001. Baseline and early held-out evaluation use seed 900002; matching a seed number across different study models does not make their banks comparable.
+
+![Controlled independent scaling and dynamic rho: training](assets/dqn-comparisons/scaling-training.png)
+
+![Controlled independent scaling and dynamic rho: final](assets/dqn-comparisons/scaling-final.png)
+
+| Case | Training seeds | Last 100 training | Final greedy | Random |
+| --- | --- | ---: | ---: | ---: |
+| Fixed independent n_SU=1 | 2, 17, 42 | 0.795138 | 0.851535 | -0.323089 |
+| Fixed independent n_SU=2 | 2, 17, 42 | 0.484593 | 0.498276 | -0.349034 |
+| Fixed independent n_SU=3 | 2, 17, 42 | 0.344823 | 0.360747 | -0.351447 |
+| Fixed independent n_SU=5 | 2, 17, 42 | 0.228612 | 0.228109 | -0.374923 |
+| Dynamic independent n_SU=1 | 2, 17, 42 | 0.858314 | 0.936180 | -0.302057 |
+| Dynamic independent n_SU=3 | 2, 17, 42 | 0.349362 | 0.365883 | -0.350478 |
+
+All six groups passed the recorded learning, health, score and execution gates against initial and random controls. Per-SU reward declines with SU count. Fixed network reward per slot rises from 0.851535 at n_SU = 1 to 1.140543 at n_SU = 5. Recorded gates do not prove optimality or convergence.
+
+Dynamic shared, dynamic n_SU = 2 and dynamic n_SU = 5 were not run in this controlled study. Fixed rho is 0.4. The dynamic grid {0.125, 0.250, 0.375, 0.500, 0.625, 0.750, 0.875} excludes 0.4. The contrast cannot isolate the value of adaptation alone.
+
+### DQN: Early unsuccessful independent recipe
+
+The early dynamic recipe failed held-out learning at n_SU = 1, 3 and 5. The complete replacement n_SU = 5, seed 42 run supplies its curve; the interrupted attempt is excluded.
+
+![Early unsuccessful independent recipe: training](assets/dqn-comparisons/early-recipe-training.png)
+
+![Early unsuccessful independent recipe: final](assets/dqn-comparisons/early-recipe-final.png)
+
+| Case | Training seeds | Last 100 training | Final greedy | Random |
+| --- | --- | ---: | ---: | ---: |
+| Early dynamic independent n_SU=1 | 2, 17, 42 | -0.365138 | -0.420125 | -0.218698 |
+| Early dynamic independent n_SU=3 | 2, 17, 42 | -0.378871 | -0.763595 | -0.291785 |
+| Early dynamic independent n_SU=5 | 2, 17, 42 | -0.430762 | -0.411412 | -0.338165 |
+
+In the final 100-episode greedy audit, 20 of 27 SU policies recorded no successful transmissions. Excessive action-value estimates accompanied failure; the records do not establish one cause. This recipe used different layers, optimizer, loss, debit accounting, model and banks. It cannot support a causal before/after comparison with controlled DQN.
+
+### DQN: Probes, Double DQN and debit sensitivity
+
+Four seed-2 probes changed Adam, batch size 8, step exploration (epsilon end 0.05, decay 500), or hidden width 64. All four failed the recorded promotion decision. Double DQN learned across three seeds but was not promoted; plain DQN remained selected. Selection used monitor evidence, not the held-out audit points shown here.
+
+![Other recorded DQN variants: training](assets/dqn-comparisons/variants-training.png)
+
+![Other recorded DQN variants: final](assets/dqn-comparisons/variants-final.png)
+
+| Case | Training seeds | Last 100 training | Final greedy | Random |
+| --- | --- | ---: | ---: | ---: |
+| Fixed independent n_SU=1 | 2, 17, 42 | 0.795138 | 0.851535 | -0.323089 |
+| Probe 1 | 2 | 0.651970 | 0.707278 | -0.340061 |
+| Probe 2 | 2 | 0.801200 | 0.872420 | -0.340061 |
+| Probe 3 | 2 | 0.666972 | 0.770581 | -0.340061 |
+| Probe 4 | 2 | 0.807219 | 0.874988 | -0.340061 |
+| Double DQN n_SU=1 | 2, 17, 42 | 0.798267 | 0.854653 | -0.323089 |
+| Executed debit sensitivity | 2 | 0.801822 | 0.876470 | -0.187508 |
+
+The executed-debit sensitivity uses seed 2 and was excluded from selection. Its configuration, training and monitor traces, action map and initial weights match the anchor; environment accounting differs in `debit_mode`. That single pair cannot establish a general debit effect. The source parity sidecar validates implementation agreement; it is not a 47th independent training run.
+
+### DQN: Legacy records and missing paper sweeps
+
+The 19 legacy non-GRU log files each contain 1,600 indexed training records. Their producer and training seeds are unverified. Filename SU labels are not validated. Their last-100 values below are raw model reward per episode, without SU normalization. No verified held-out audit exists, so these records do not enter the comparison figures.
+
+| Legacy file | Actions | Observations | Last 100 raw episode reward |
+| --- | ---: | ---: | ---: |
+| base_result_1.log |34|11|26.473710105|
+| base_result_5.log |34|75|7.528651660|
+| base_result_10.log |34|200|-.588197031|
+| base_result_10_1.log |66|200|4.538429397|
+| base_result_dynamic_rho_1.log |238|11|42.831108128|
+| base_result_dynamic_rho_5.log |238|75|3.933963091|
+| base_result_dynamic_rho_10.log |238|200|-.761028678|
+| proposed_result_hard_update_1.log |66|12|11.968496562|
+| res_1.log |34|10|46.497116779|
+| res_5.log |34|70|12.352800493|
+| res_10.log |34|190|12.425918258|
+| res_dynamic_rho_1.log |238|10|68.197744942|
+| res_dynamic_rho_5.log |238|70|18.709087125|
+| res_dynamic_rho_10.log |238|190|17.115115119|
+| res_dynamic_rho_15.log |238|360|15.724434250|
+| res_dynamic_rho_20.log |238|580|16.067239246|
+| res_hard_update_1.log |238|10|56.119880579|
+| res_hard_update_5.log |238|70|15.415478074|
+| res_hard_update_10.log |238|190|16.935746193|
+
+Hard-update filenames do not establish fixed rho: retained action counts and rho values show dynamic cases. The inventory does not represent all duplicate or GRU logs.
+
+No matched controlled local paper sweep was identified for A, lambda, battery capacity or fixed rho. Older records remain unverified. Paper Figure 2 uses A = 6/10, rho = 0.5, lambda = 0.1, Cmax = 0.5; Figure 4 uses lambda = 0.01/0.2/0.4, A = 10, rho = 0.4, Cmax = 0.5; Figure 5 varies Cmax = 0.1–0.7 at rho = 0.2/0.4/0.6. Paper N = 20 denotes slots; this report uses n_SU for link count. No matched multi-SU paper reproduction is available.
+
+### DRQN: Later-stage corrected recurrent results
+
 
 Corrected fixed N = 1, final episode-1600 checkpoints, reward per SU per slot:
 
