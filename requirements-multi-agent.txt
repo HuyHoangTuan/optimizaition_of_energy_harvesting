@@ -1,0 +1,5 @@
+# CPU validation runtime: Python 3.10.20. PyTorch CPU wheels may use +cpu suffix.
+numpy==1.26.1
+torch==2.1.0
+# PyTorch 2.1 optimizer initialization imports packaging.version at runtime.
+packaging==26.3
